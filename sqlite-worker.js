@@ -7,7 +7,13 @@ const initializeSQLite = async () => {
     try {
         sqlite3 = await sqlite3InitModule({
             print: (...args) => postMessage({ type: 'log', data: args.join(' ') }),
-            printErr: (...args) => postMessage({ type: 'error', data: args.join(' ') })
+            printErr: (...args) => postMessage({ type: 'error', data: args.join(' ') }),
+            locateFile: (filename) => {
+                if (filename === 'sqlite3.wasm') {
+                    return './lib/sqlite3.wasm';
+                }
+                return filename;
+            }
         });
         
         if (sqlite3.capi.sqlite3_vfs_find('opfs')) {
