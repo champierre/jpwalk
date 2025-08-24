@@ -1,6 +1,9 @@
 # Playwright screenshots and artifacts
 .playwright-mcp/
 
+# Serena IDE files
+.serena/
+
 # Node modules
 node_modules/
 
