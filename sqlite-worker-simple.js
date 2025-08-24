@@ -88,8 +88,8 @@ const initializeSQLite = async () => {
         const countResult = db.exec('SELECT COUNT(*) as count FROM tasks');
         const count = countResult[0]?.values[0][0] || 0;
         
-        postMessage({ type: 'initialized', data: { useOPFS: false, usePersistence: true } });
-        postMessage({ type: 'dbReady', data: { taskCount: count } });
+        postMessage({ type: 'initialized', useOPFS: false, usePersistence: true });
+        postMessage({ type: 'dbReady', taskCount: count });
         
     } catch (error) {
         postMessage({ type: 'initError', data: { error: error.message } });

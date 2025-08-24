@@ -18,8 +18,8 @@ const initSQLite = async () => {
         worker = new Worker('sqlite-worker-simple.js');
         
         worker.onmessage = (event) => {
-            console.log('Worker message:', event.data);
-            const { type, data, id } = event.data;
+            const message = event.data;
+            const { type, data, id } = message;
             
             switch (type) {
                 case 'log':
@@ -29,16 +29,16 @@ const initSQLite = async () => {
                     console.error(data);
                     break;
                 case 'initialized':
-                    if (data.useOPFS) {
+                    if (message.useOPFS) {
                         log('✅ SQLite WASM + OPFS の初期化完了');
-                    } else if (data.usePersistence) {
+                    } else if (message.usePersistence) {
                         log('✅ SQLite + IndexedDB の初期化完了（永続化対応）');
                     } else {
                         log('⚠️ メモリデータベースを使用します。');
                     }
                     break;
                 case 'dbReady':
-                    log(`データベース準備完了。${data.taskCount}件のタスクが保存されています。`);
+                    log(`データベース準備完了。${message.taskCount}件のタスクが保存されています。`);
                     loadTasks();
                     break;
                 case 'initError':
