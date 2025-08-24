@@ -39,6 +39,8 @@ const router = {
         if (hash.startsWith('#session/')) {
             const sessionId = hash.split('/')[1];
             this.showSession(sessionId);
+        } else if (hash === '#sessions') {
+            this.showSessions();
         } else {
             this.showMain();
         }
@@ -47,15 +49,25 @@ const router = {
     showMain() {
         document.getElementById('mainView').classList.remove('hidden');
         document.getElementById('sessionView').classList.add('hidden');
+        document.getElementById('sessionsView').classList.add('hidden');
         this.currentView = 'main';
         loadSessions();
         updateWeeklyStats();
+    },
+    
+    showSessions() {
+        document.getElementById('mainView').classList.add('hidden');
+        document.getElementById('sessionView').classList.add('hidden');
+        document.getElementById('sessionsView').classList.remove('hidden');
+        this.currentView = 'sessions';
+        loadAllSessions();
     },
     
     showSession(sessionId) {
         currentSessionId = sessionId;
         document.getElementById('mainView').classList.add('hidden');
         document.getElementById('sessionView').classList.remove('hidden');
+        document.getElementById('sessionsView').classList.add('hidden');
         this.currentView = 'session';
         // Only load details if data storage is ready
         // If SQLite worker exists, use it
@@ -75,7 +87,7 @@ const router = {
     navigate(path) {
         window.location.hash = path;
     }
-};
+};;
 
 const initSQLite = async () => {
     try {
@@ -189,7 +201,7 @@ const loadSessions = async () => {
     }
     
     try {
-        const sessions = await selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC LIMIT 10');
+        const sessions = await selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC LIMIT 3');
         const sessionList = document.getElementById('sessionList');
         sessionList.innerHTML = '';
         
@@ -201,9 +213,88 @@ const loadSessions = async () => {
         sessions.forEach(session => {
             addSessionToDOM(session);
         });
+        
+        // Add "more sessions" button if there might be more sessions
+        const totalSessions = await selectValue('SELECT COUNT(*) FROM walking_sessions');
+        if (totalSessions > 3) {
+            const moreButton = document.createElement('button');
+            moreButton.className = 'w-full text-blue-500 hover:text-blue-600 text-sm py-2 mt-3 transition-colors';
+            moreButton.textContent = 'もっと見る';
+            moreButton.onclick = () => router.navigate('sessions');
+            sessionList.appendChild(moreButton);
+        }
     } catch (error) {
         console.error('Error loading sessions:', error);
     }
+};
+
+const loadAllSessions = async () => {
+    if (!worker) {
+        loadAllSessionsFromLocalStorage();
+        return;
+    }
+    
+    try {
+        const sessions = await selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC');
+        const allSessionsList = document.getElementById('allSessionsList');
+        allSessionsList.innerHTML = '';
+        
+        if (sessions.length === 0) {
+            allSessionsList.innerHTML = '<p class="text-gray-500 text-center py-8">まだセッションがありません</p>';
+            return;
+        }
+        
+        sessions.forEach(session => {
+            addSessionToAllSessionsDOM(session);
+        });
+    } catch (error) {
+        console.error('Error loading all sessions:', error);
+    }
+};
+
+const addSessionToAllSessionsDOM = (session) => {
+    const allSessionsList = document.getElementById('allSessionsList');
+    const sessionItem = document.createElement('div');
+    sessionItem.onclick = () => router.navigate(`session/${session.id}`);
+    sessionItem.className = 'cursor-pointer block border-b border-gray-200 pb-3 flex justify-between items-center hover:bg-gray-50 transition-colors';
+    
+    const date = new Date(session.created_at);
+    const dateStr = date.toLocaleDateString('ja-JP', {
+        month: 'numeric',
+        day: 'numeric'
+    });
+    const timeStr = date.toLocaleTimeString('ja-JP', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    
+    const duration = Math.round(session.duration / 60000);
+    const distance = (session.distance || 0).toFixed(1);
+    
+    sessionItem.innerHTML = `
+        <div class="flex-1">
+            <div class="text-gray-800">${dateStr} ${timeStr}</div>
+            <div class="text-sm text-gray-600">${duration}分 • ${distance}km</div>
+        </div>
+        <div class="text-green-600 text-sm font-medium">完了</div>
+    `;
+    
+    allSessionsList.appendChild(sessionItem);
+};
+
+const loadAllSessionsFromLocalStorage = () => {
+    const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
+    const allSessionsList = document.getElementById('allSessionsList');
+    allSessionsList.innerHTML = '';
+    
+    if (sessions.length === 0) {
+        allSessionsList.innerHTML = '<p class="text-gray-500 text-center py-8">まだセッションがありません</p>';
+        return;
+    }
+    
+    sessions.reverse().forEach(session => {
+        addSessionToAllSessionsDOM(session);
+    });
 };
 
 const addSessionToDOM = (session) => {
@@ -271,12 +362,22 @@ const startWalk = () => {
 const pauseWalk = () => {
     if (!timer) return;
     
+    // Track location before pausing
+    console.log('⏸️ 一時停止前に位置情報を記録');
+    trackLocation();
+    
     clearInterval(timer);
     timer = null;
     pauseTime = Date.now();
     
     const pauseBtn = document.getElementById('pauseBtn');
-    pauseBtn.textContent = '再開';
+    pauseBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
+        </svg>
+        <span>再開</span>
+    `;
     pauseBtn.onclick = resumeWalk;
     
     log('ウォーキングを一時停止しました');
@@ -294,7 +395,12 @@ const resumeWalk = () => {
     startTimer();
     
     const pauseBtn = document.getElementById('pauseBtn');
-    pauseBtn.textContent = '一時停止';
+    pauseBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9v6m-4.5 0V9M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span>一時停止</span>
+    `;
     pauseBtn.onclick = pauseWalk;
     
     log('ウォーキングを再開しました');
@@ -302,6 +408,10 @@ const resumeWalk = () => {
 
 const stopWalk = async () => {
     if (!currentSession) return;
+    
+    // Track final location before stopping
+    console.log('🏁 終了前に最終位置情報を記録');
+    trackLocation();
     
     clearInterval(timer);
     timer = null;
@@ -572,6 +682,9 @@ const displaySessionDetails = (session) => {
     
     // Display map
     displayRouteMap(session);
+    
+    // Display locations data
+    displayLocations(session);
 };
 
 const deleteSession = async () => {
@@ -599,25 +712,36 @@ const deleteSession = async () => {
 // Location tracking functions
 const startLocationTracking = () => {
     if (!navigator.geolocation) {
-        console.log('Geolocation is not supported');
+        console.log('❌ このブラウザは位置情報機能をサポートしていません');
         return;
     }
+    
+    console.log('🚀 位置情報トラッキングを開始します');
+    console.log('   → 初回の位置情報を取得中...');
     
     // Track location immediately
     trackLocation();
     
     // Then track every minute
-    locationTimer = setInterval(trackLocation, 60000);
+    locationTimer = setInterval(() => {
+        console.log('⏱️ 1分経過 - 定期位置情報取得');
+        trackLocation();
+    }, 60000);
+    
+    console.log('   → 1分ごとに位置情報を記録します');
 };
 
 const stopLocationTracking = () => {
     if (locationTimer) {
         clearInterval(locationTimer);
         locationTimer = null;
+        console.log('🛑 位置情報の定期取得を停止しました');
     }
 };
 
 const trackLocation = () => {
+    console.log('📍 位置情報取得を試みています...');
+    
     navigator.geolocation.getCurrentPosition(
         (position) => {
             const location = {
@@ -629,11 +753,34 @@ const trackLocation = () => {
             
             if (currentSession) {
                 currentSession.locations.push(location);
-                console.log('Location tracked:', location);
+                const time = new Date(location.timestamp).toLocaleTimeString('ja-JP');
+                const phaseJa = currentPhase === 'fast' ? '速歩き' : 'ゆっくり歩き';
+                
+                console.log(`✅ 位置情報を保存しました [${time}]`);
+                console.log(`   フェーズ: ${phaseJa} (${intervalCount}/5)`);
+                console.log(`   緯度: ${location.lat.toFixed(6)}`);
+                console.log(`   経度: ${location.lng.toFixed(6)}`);
+                console.log(`   保存済み位置情報数: ${currentSession.locations.length}件`);
+                console.log('   詳細:', location);
+            } else {
+                console.warn('⚠️ セッションが開始されていないため、位置情報を保存できませんでした');
             }
         },
         (error) => {
-            console.error('Error getting location:', error);
+            console.error('❌ 位置情報の取得に失敗しました:', error);
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    console.error('   → 位置情報の使用が拒否されました');
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    console.error('   → 位置情報が利用できません');
+                    break;
+                case error.TIMEOUT:
+                    console.error('   → 位置情報の取得がタイムアウトしました');
+                    break;
+                default:
+                    console.error('   → 不明なエラー');
+            }
         },
         {
             enableHighAccuracy: true,
@@ -738,18 +885,108 @@ const displayRouteMap = (session) => {
             L.polyline(segment, { color: 'blue', weight: 4, opacity: 0.8 }).addTo(map);
         });
         
-        // Add start and end markers
-        L.marker([locations[0].lat, locations[0].lng]).addTo(map)
-            .bindPopup('開始地点');
+        // Add start and end markers with custom colors
+        // Start marker (green)
+        const startIcon = L.divIcon({
+            html: '<div style="background-color: #10b981; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -12],
+            className: ''
+        });
+        
+        L.marker([locations[0].lat, locations[0].lng], { icon: startIcon }).addTo(map)
+            .bindPopup('<b>🚶 開始地点</b><br>' + new Date(locations[0].timestamp).toLocaleTimeString('ja-JP'));
+        
+        // End marker (red)
+        const endIcon = L.divIcon({
+            html: '<div style="background-color: #ef4444; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+            popupAnchor: [0, -12],
+            className: ''
+        });
         
         const lastLoc = locations[locations.length - 1];
-        L.marker([lastLoc.lat, lastLoc.lng]).addTo(map)
-            .bindPopup('終了地点');
+        L.marker([lastLoc.lat, lastLoc.lng], { icon: endIcon }).addTo(map)
+            .bindPopup('<b>🏁 終了地点</b><br>' + new Date(lastLoc.timestamp).toLocaleTimeString('ja-JP'));
         
         // Fit map to show all route
         const bounds = L.latLngBounds(locations.map(loc => [loc.lat, loc.lng]));
         map.fitBounds(bounds, { padding: [20, 20] });
     }, 100);
+};
+
+const displayLocations = (session) => {
+    // Parse locations if it's a string
+    let locations = session.locations;
+    if (typeof locations === 'string') {
+        try {
+            locations = JSON.parse(locations);
+        } catch (e) {
+            locations = [];
+        }
+    }
+    
+    const locationsContainer = document.getElementById('locationsList');
+    
+    if (!locations || locations.length === 0) {
+        locationsContainer.innerHTML = '<p class="text-gray-500 text-sm">位置情報がありません</p>';
+        return;
+    }
+    
+    // Create a table to display locations
+    const table = document.createElement('table');
+    table.className = 'w-full text-sm';
+    
+    // Create table header
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+        <tr class="border-b">
+            <th class="text-left py-2 px-2">#</th>
+            <th class="text-left py-2 px-2">時刻</th>
+            <th class="text-left py-2 px-2">フェーズ</th>
+            <th class="text-left py-2 px-2">緯度</th>
+            <th class="text-left py-2 px-2">経度</th>
+        </tr>
+    `;
+    table.appendChild(thead);
+    
+    // Create table body
+    const tbody = document.createElement('tbody');
+    locations.forEach((loc, index) => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b hover:bg-gray-50';
+        
+        const time = new Date(loc.timestamp);
+        const timeStr = time.toLocaleTimeString('ja-JP', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        
+        const phaseColor = loc.phase === 'fast' ? 'text-red-600' : 'text-blue-600';
+        const phaseName = loc.phase === 'fast' ? '速歩き' : 'ゆっくり';
+        
+        tr.innerHTML = `
+            <td class="py-2 px-2">${index + 1}</td>
+            <td class="py-2 px-2">${timeStr}</td>
+            <td class="py-2 px-2 ${phaseColor} font-medium">${phaseName}</td>
+            <td class="py-2 px-2 font-mono text-xs">${loc.lat.toFixed(6)}</td>
+            <td class="py-2 px-2 font-mono text-xs">${loc.lng.toFixed(6)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    
+    // Add summary at the top
+    const summary = document.createElement('div');
+    summary.className = 'mb-3 text-sm text-gray-600';
+    summary.textContent = `記録数: ${locations.length}件`;
+    
+    locationsContainer.innerHTML = '';
+    locationsContainer.appendChild(summary);
+    locationsContainer.appendChild(table);
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -766,6 +1003,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('deleteBtn').addEventListener('click', () => {
         document.getElementById('deleteModal').classList.remove('hidden');
     });
+    
+    // All sessions view buttons
+    document.getElementById('backToMainBtn').addEventListener('click', () => router.navigate(''));
     
     // Modal buttons
     document.getElementById('cancelBtn').addEventListener('click', () => {
