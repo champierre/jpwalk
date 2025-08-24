@@ -24,7 +24,7 @@ export class WalkingController {
             isInitialized: false,
             
             init: () => {
-                window.addEventListener('hashchange', () => this.handleRoute());
+                window.addEventListener('hashchange', () => this.router.handleRoute());
                 this.router.isInitialized = true;
             },
             
@@ -104,18 +104,21 @@ export class WalkingController {
 
     // Walking session methods
     startWalk() {
+        const sessionStartTime = Date.now();
         this.model.currentSession = {
-            startTime: Date.now(),
+            startTime: sessionStartTime,
             intervals: []
         };
+        this.model.currentSessionId = sessionStartTime; // Use timestamp as temporary session ID
         
-        this.startTime = Date.now();
+        this.startTime = sessionStartTime;
         this.pauseTime = 0;
         this.currentPhase = 'fast';
-        this.phaseStartTime = Date.now();
+        this.phaseStartTime = sessionStartTime;
         this.intervalCount = 0;
 
         this.view.showSessionUI();
+        this.view.updatePhaseDisplay(this.currentPhase);
         this.startTimer();
         this.startLocationTracking();
         this.trackLocation();
@@ -162,12 +165,17 @@ export class WalkingController {
         
         this.stopLocationTracking();
         
-        await this.trackLocation();
-        
         const duration = Date.now() - this.startTime;
         const sessionId = await this.model.saveSession(duration);
         
+        // Update session ID for final location tracking if we got a valid ID
+        if (sessionId) {
+            this.model.currentSessionId = sessionId;
+        }
+        await this.trackLocation();
+        
         this.model.currentSession = null;
+        this.model.currentSessionId = null;
         this.view.hideSessionUI();
         this.showMain();
     }
@@ -234,7 +242,7 @@ export class WalkingController {
                     };
                     
                     if (this.model.currentSession) {
-                        this.model.saveLocation(this.model.currentSession.sessionId || Date.now(), location);
+                        this.model.saveLocation(this.model.currentSessionId, location);
                     }
                     resolve();
                 },
@@ -263,7 +271,7 @@ export class WalkingController {
         console.log('📍 モック位置情報:', mockLocation);
         
         if (this.model.currentSession) {
-            this.model.saveLocation(this.model.currentSession.sessionId || Date.now(), mockLocation);
+            this.model.saveLocation(this.model.currentSessionId, mockLocation);
         }
         resolve();
     }
