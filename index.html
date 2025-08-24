@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQLite WASM + OPFS デモ</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>📚 SQLite WASM + OPFS サンプル</h1>
+        <p class="subtitle">ブラウザ内で動作する永続的なSQLiteデータベース</p>
+        
+        <div id="status" class="status">初期化中...</div>
+        
+        <div class="section">
+            <h2>タスク管理アプリ</h2>
+            
+            <div class="input-group">
+                <input type="text" id="taskInput" placeholder="新しいタスクを入力">
+                <button id="addBtn">追加</button>
+            </div>
+            
+            <div id="taskList" class="task-list"></div>
+        </div>
+        
+        <div class="section">
+            <h2>データベース操作</h2>
+            <div class="button-group">
+                <button id="exportBtn">データをエクスポート</button>
+                <button id="clearBtn">全データを削除</button>
+                <button id="statsBtn">統計情報</button>
+            </div>
+            <pre id="output" class="output"></pre>
+        </div>
+        
+        <div class="section">
+            <h2>SQLクエリ実行</h2>
+            <textarea id="sqlInput" placeholder="SELECT * FROM tasks;" rows="3"></textarea>
+            <button id="executeBtn">実行</button>
+            <pre id="queryResult" class="output"></pre>
+        </div>
+    </div>
+    
+    <script src="app.js" type="module"></script>
+</body>
+</html>
