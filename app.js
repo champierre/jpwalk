@@ -1,5 +1,6 @@
-let sqlite3;
-let db;
+let worker;
+let requestId = 0;
+const pendingRequests = new Map();
 
 const log = (msg, isError = false) => {
     const status = document.getElementById('status');
@@ -10,42 +11,64 @@ const log = (msg, isError = false) => {
 
 const initSQLite = async () => {
     try {
-        log('SQLite WASMを読み込み中...');
+        log('SQLite WASMを初期化中...');
         
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/@sqlite.org/sqlite-wasm@3.45.1-build1/sqlite-wasm/jswasm/sqlite3.js';
-        
-        await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
-        
-        if (typeof sqlite3InitModule !== 'undefined') {
-            sqlite3 = await sqlite3InitModule({
-                print: console.log,
-                printErr: console.error
-            });
-            
-            if (window.crossOriginIsolated && sqlite3.capi.sqlite3_vfs_find('opfs')) {
-                log('OPFS VFSを使用して初期化中...');
-                db = new sqlite3.oo1.OpfsDb('mydb.sqlite3');
-                log('✅ SQLite WASM + OPFS の初期化完了');
-            } else {
-                if (!window.crossOriginIsolated) {
-                    log('⚠️ Cross-Origin Isolationが有効ではありません。ページをリロードしてください。');
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2000);
-                    return;
-                }
-                db = new sqlite3.oo1.DB();
-                log('⚠️ OPFSが利用できません。メモリデータベースを使用します。');
-            }
-            
-            initDatabase();
-            loadTasks();
+        if (!window.crossOriginIsolated) {
+            log('⚠️ Cross-Origin Isolationが有効ではありません。ページをリロードしてください。');
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+            return;
         }
+        
+        worker = new Worker('sqlite-worker.js');
+        
+        worker.onmessage = (event) => {
+            const { type, data, id } = event.data;
+            
+            switch (type) {
+                case 'log':
+                    console.log(data);
+                    break;
+                case 'error':
+                    console.error(data);
+                    break;
+                case 'initialized':
+                    if (data.useOPFS) {
+                        log('✅ SQLite WASM + OPFS の初期化完了');
+                    } else {
+                        log('⚠️ OPFSが利用できません。メモリデータベースを使用します。');
+                    }
+                    break;
+                case 'dbReady':
+                    log(`データベース準備完了。${data.taskCount}件のタスクが保存されています。`);
+                    loadTasks();
+                    break;
+                case 'initError':
+                    throw new Error(data.error);
+                case 'execResult':
+                case 'selectResult':
+                case 'selectValueResult':
+                case 'selectObjectResult':
+                    if (pendingRequests.has(id)) {
+                        pendingRequests.get(id).resolve(event.data.result);
+                        pendingRequests.delete(id);
+                    }
+                    break;
+                case 'execError':
+                case 'selectError':
+                case 'selectValueError':
+                case 'selectObjectError':
+                    if (pendingRequests.has(id)) {
+                        pendingRequests.get(id).reject(new Error(event.data.error));
+                        pendingRequests.delete(id);
+                    }
+                    break;
+            }
+        };
+        
+        worker.postMessage({ type: 'init' });
+        
     } catch (error) {
         console.error('エラー:', error);
         log('❌ SQLiteの初期化に失敗しました。ローカルストレージを使用します。', true);
@@ -53,33 +76,46 @@ const initSQLite = async () => {
     }
 };
 
-const initDatabase = () => {
-    try {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                completed BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-        
-        const count = db.selectValue('SELECT COUNT(*) FROM tasks');
-        log(`データベース準備完了。${count}件のタスクが保存されています。`);
-    } catch (error) {
-        console.error('Database initialization error:', error);
-        log('データベースの初期化に失敗しました', true);
-    }
+const execSQL = (sql, bind = []) => {
+    return new Promise((resolve, reject) => {
+        const id = requestId++;
+        pendingRequests.set(id, { resolve, reject });
+        worker.postMessage({ type: 'exec', data: { id, sql, bind } });
+    });
 };
 
-const loadTasks = () => {
-    if (!db) {
+const selectObjects = (sql, bind = []) => {
+    return new Promise((resolve, reject) => {
+        const id = requestId++;
+        pendingRequests.set(id, { resolve, reject });
+        worker.postMessage({ type: 'selectObjects', data: { id, sql, bind } });
+    });
+};
+
+const selectValue = (sql, bind = []) => {
+    return new Promise((resolve, reject) => {
+        const id = requestId++;
+        pendingRequests.set(id, { resolve, reject });
+        worker.postMessage({ type: 'selectValue', data: { id, sql, bind } });
+    });
+};
+
+const selectObject = (sql, bind = []) => {
+    return new Promise((resolve, reject) => {
+        const id = requestId++;
+        pendingRequests.set(id, { resolve, reject });
+        worker.postMessage({ type: 'selectObject', data: { id, sql, bind } });
+    });
+};
+
+const loadTasks = async () => {
+    if (!worker) {
         loadTasksFromLocalStorage();
         return;
     }
     
     try {
-        const tasks = db.selectObjects('SELECT * FROM tasks ORDER BY created_at DESC');
+        const tasks = await selectObjects('SELECT * FROM tasks ORDER BY created_at DESC');
         const taskList = document.getElementById('taskList');
         taskList.innerHTML = '';
         
@@ -112,25 +148,21 @@ const addTaskToDOM = (task) => {
     taskList.appendChild(taskItem);
 };
 
-const addTask = () => {
+const addTask = async () => {
     const input = document.getElementById('taskInput');
     const title = input.value.trim();
     
     if (!title) return;
     
-    if (!db) {
+    if (!worker) {
         addTaskToLocalStorage(title);
         input.value = '';
         return;
     }
     
     try {
-        db.exec({
-            sql: 'INSERT INTO tasks (title) VALUES (?)',
-            bind: [title]
-        });
-        
-        const newTask = db.selectObject('SELECT * FROM tasks WHERE id = last_insert_rowid()');
+        await execSQL('INSERT INTO tasks (title) VALUES (?)', [title]);
+        const newTask = await selectObject('SELECT * FROM tasks WHERE id = last_insert_rowid()');
         addTaskToDOM(newTask);
         input.value = '';
         log('タスクを追加しました');
@@ -140,18 +172,14 @@ const addTask = () => {
     }
 };
 
-const toggleTask = (id, completed) => {
-    if (!db) {
+const toggleTask = async (id, completed) => {
+    if (!worker) {
         toggleTaskInLocalStorage(id, completed);
         return;
     }
     
     try {
-        db.exec({
-            sql: 'UPDATE tasks SET completed = ? WHERE id = ?',
-            bind: [completed ? 1 : 0, id]
-        });
-        
+        await execSQL('UPDATE tasks SET completed = ? WHERE id = ?', [completed ? 1 : 0, id]);
         const taskItem = document.querySelector(`.task-item[data-id="${id}"] span`);
         taskItem.classList.toggle('completed', completed);
     } catch (error) {
@@ -159,18 +187,14 @@ const toggleTask = (id, completed) => {
     }
 };
 
-const deleteTask = (id) => {
-    if (!db) {
+const deleteTask = async (id) => {
+    if (!worker) {
         deleteTaskFromLocalStorage(id);
         return;
     }
     
     try {
-        db.exec({
-            sql: 'DELETE FROM tasks WHERE id = ?',
-            bind: [id]
-        });
-        
+        await execSQL('DELETE FROM tasks WHERE id = ?', [id]);
         const taskItem = document.querySelector(`.task-item[data-id="${id}"]`);
         taskItem.remove();
         log('タスクを削除しました');
@@ -180,14 +204,14 @@ const deleteTask = (id) => {
     }
 };
 
-const exportData = () => {
-    if (!db) {
+const exportData = async () => {
+    if (!worker) {
         exportLocalStorageData();
         return;
     }
     
     try {
-        const tasks = db.selectObjects('SELECT * FROM tasks');
+        const tasks = await selectObjects('SELECT * FROM tasks');
         const data = JSON.stringify(tasks, null, 2);
         const output = document.getElementById('output');
         output.textContent = data;
@@ -207,10 +231,10 @@ const exportData = () => {
     }
 };
 
-const clearData = () => {
+const clearData = async () => {
     if (!confirm('すべてのデータを削除しますか？')) return;
     
-    if (!db) {
+    if (!worker) {
         localStorage.removeItem('tasks');
         loadTasksFromLocalStorage();
         log('すべてのデータを削除しました');
@@ -218,7 +242,7 @@ const clearData = () => {
     }
     
     try {
-        db.exec('DELETE FROM tasks');
+        await execSQL('DELETE FROM tasks');
         loadTasks();
         log('すべてのデータを削除しました');
     } catch (error) {
@@ -227,17 +251,17 @@ const clearData = () => {
     }
 };
 
-const showStats = () => {
-    if (!db) {
+const showStats = async () => {
+    if (!worker) {
         showLocalStorageStats();
         return;
     }
     
     try {
         const stats = {
-            total: db.selectValue('SELECT COUNT(*) FROM tasks'),
-            completed: db.selectValue('SELECT COUNT(*) FROM tasks WHERE completed = 1'),
-            pending: db.selectValue('SELECT COUNT(*) FROM tasks WHERE completed = 0')
+            total: await selectValue('SELECT COUNT(*) FROM tasks'),
+            completed: await selectValue('SELECT COUNT(*) FROM tasks WHERE completed = 1'),
+            pending: await selectValue('SELECT COUNT(*) FROM tasks WHERE completed = 0')
         };
         
         const output = document.getElementById('output');
@@ -254,8 +278,8 @@ const showStats = () => {
     }
 };
 
-const executeSQL = () => {
-    if (!db) {
+const executeSQL = async () => {
+    if (!worker) {
         log('SQLiteが初期化されていません', true);
         return;
     }
@@ -267,7 +291,7 @@ const executeSQL = () => {
     
     try {
         const isSelect = sql.toLowerCase().startsWith('select');
-        const result = isSelect ? db.selectObjects(sql) : db.exec(sql);
+        const result = isSelect ? await selectObjects(sql) : await execSQL(sql);
         
         const queryResult = document.getElementById('queryResult');
         if (isSelect) {
