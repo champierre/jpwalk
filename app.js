@@ -21,7 +21,7 @@ const initSQLite = async () => {
             return;
         }
         
-        worker = new Worker('sqlite-worker.js');
+        worker = new Worker('sqlite-worker-simple.js');
         
         worker.onmessage = (event) => {
             const { type, data, id } = event.data;
@@ -36,8 +36,10 @@ const initSQLite = async () => {
                 case 'initialized':
                     if (data.useOPFS) {
                         log('✅ SQLite WASM + OPFS の初期化完了');
+                    } else if (data.usePersistence) {
+                        log('✅ SQLite + IndexedDB の初期化完了（永続化対応）');
                     } else {
-                        log('⚠️ OPFSが利用できません。メモリデータベースを使用します。');
+                        log('⚠️ メモリデータベースを使用します。');
                     }
                     break;
                 case 'dbReady':
