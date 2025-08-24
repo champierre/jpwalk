@@ -176,6 +176,7 @@ self.onmessage = async (event) => {
                     await saveToIndexedDB(db.export());
                     
                     postMessage({ type: 'execResult', id: data.id, result: { lastInsertRowId } });
+                    console.log('SQLite exec result:', { lastInsertRowId });
                 } catch (error) {
                     postMessage({ type: 'execError', id: data.id, error: error.message });
                 }

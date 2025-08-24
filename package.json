@@ -1,0 +1,20 @@
+{
+  "name": "jpwalk",
+  "version": "1.0.0",
+  "description": "Japanese Walking (インターバル速歩) web application",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "serve": "npx http-server"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "jsdom": "^22.0.0",
+    "jest-environment-jsdom": "^29.0.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "testMatch": ["<rootDir>/tests/**/*.test.js"]
+  }
+}
