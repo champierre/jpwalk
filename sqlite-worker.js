@@ -1,4 +1,4 @@
-importScripts('https://cdn.jsdelivr.net/npm/@sqlite.org/sqlite-wasm@3.45.1-build1/sqlite-wasm/jswasm/sqlite3.js');
+importScripts('./lib/sqlite3.js');
 
 let sqlite3;
 let db;

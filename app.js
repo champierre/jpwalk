@@ -45,7 +45,10 @@ const initSQLite = async () => {
                     loadTasks();
                     break;
                 case 'initError':
-                    throw new Error(data.error);
+                    console.error('Worker initialization error:', data ? data.error : 'Unknown error');
+                    log('❌ SQLiteの初期化に失敗しました。ローカルストレージを使用します。', true);
+                    initLocalStorageFallback();
+                    break;
                 case 'execResult':
                 case 'selectResult':
                 case 'selectValueResult':
