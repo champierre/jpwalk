@@ -228,25 +228,37 @@ const loadSessions = async () => {
     }
 };
 
-const loadAllSessions = async () => {
+const loadAllSessions = async (page = 1) => {
     if (!worker) {
-        loadAllSessionsFromLocalStorage();
+        loadAllSessionsFromLocalStorage(page);
         return;
     }
     
     try {
-        const sessions = await selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC');
+        const limit = 10;
+        const offset = (page - 1) * limit;
+        
+        // Get total count for pagination
+        const totalCount = await selectValue('SELECT COUNT(*) FROM walking_sessions');
+        const totalPages = Math.ceil(totalCount / limit);
+        
+        // Get sessions for current page
+        const sessions = await selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset]);
         const allSessionsList = document.getElementById('allSessionsList');
         allSessionsList.innerHTML = '';
         
         if (sessions.length === 0) {
             allSessionsList.innerHTML = '<p class="text-gray-500 text-center py-8">まだセッションがありません</p>';
+            updatePaginationControls(1, 1, 0);
             return;
         }
         
         sessions.forEach(session => {
             addSessionToAllSessionsDOM(session);
         });
+        
+        // Update pagination controls
+        updatePaginationControls(page, totalPages, totalCount);
     } catch (error) {
         console.error('Error loading all sessions:', error);
     }
@@ -282,19 +294,68 @@ const addSessionToAllSessionsDOM = (session) => {
     allSessionsList.appendChild(sessionItem);
 };
 
-const loadAllSessionsFromLocalStorage = () => {
+const loadAllSessionsFromLocalStorage = (page = 1) => {
     const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
     const allSessionsList = document.getElementById('allSessionsList');
     allSessionsList.innerHTML = '';
     
+    const limit = 10;
+    const totalCount = sessions.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    
     if (sessions.length === 0) {
         allSessionsList.innerHTML = '<p class="text-gray-500 text-center py-8">まだセッションがありません</p>';
+        updatePaginationControls(1, 1, 0);
         return;
     }
     
-    sessions.reverse().forEach(session => {
+    // Get sessions for current page (already sorted in reverse order)
+    const pageSessions = sessions.slice(startIndex, endIndex);
+    pageSessions.forEach(session => {
         addSessionToAllSessionsDOM(session);
     });
+    
+    // Update pagination controls
+    updatePaginationControls(page, totalPages, totalCount);
+};
+
+let currentSessionsPage = 1;
+
+const updatePaginationControls = (currentPage, totalPages, totalCount) => {
+    currentSessionsPage = currentPage;
+    
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    const currentPageSpan = document.getElementById('currentPage');
+    const totalPagesSpan = document.getElementById('totalPages');
+    const paginationControls = document.getElementById('paginationControls');
+    
+    // Update page info
+    currentPageSpan.textContent = currentPage;
+    totalPagesSpan.textContent = totalPages;
+    
+    // Update button states
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
+    
+    // Hide pagination if only one page or no sessions
+    if (totalPages <= 1) {
+        paginationControls.style.display = 'none';
+    } else {
+        paginationControls.style.display = 'flex';
+    }
+};
+
+const goToPreviousPage = () => {
+    if (currentSessionsPage > 1) {
+        loadAllSessions(currentSessionsPage - 1);
+    }
+};
+
+const goToNextPage = () => {
+    loadAllSessions(currentSessionsPage + 1);
 };
 
 const addSessionToDOM = (session) => {
@@ -1097,6 +1158,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // All sessions view buttons
     document.getElementById('backToMainBtn').addEventListener('click', () => router.navigate(''));
+    document.getElementById('prevPageBtn').addEventListener('click', goToPreviousPage);
+    document.getElementById('nextPageBtn').addEventListener('click', goToNextPage);
     
     // Modal buttons
     document.getElementById('cancelBtn').addEventListener('click', () => {
