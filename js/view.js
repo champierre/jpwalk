@@ -221,6 +221,10 @@ export class WalkingView {
     displayLocations(locations) {
         const locationsList = document.getElementById('locationsList');
         
+        // デバッグログを追加
+        console.log('🗺️ displayLocations called with:', locations);
+        console.log('📊 Number of locations:', locations ? locations.length : 0);
+        
         if (!locations || locations.length === 0) {
             locationsList.innerHTML = '<p class="text-gray-500 text-sm">位置情報がありません</p>';
             return;
@@ -239,7 +243,9 @@ export class WalkingView {
         `;
         table.appendChild(headerRow);
 
-        locations.forEach(location => {
+        locations.forEach((location, index) => {
+            console.log(`📍 Location ${index + 1}:`, location);
+            
             const row = document.createElement('tr');
             row.className = 'border-b border-gray-100';
             

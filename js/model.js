@@ -187,7 +187,61 @@ export class WalkingModel {
         return sessionId;
     }
 
+    // セッション開始時にデータベースに初期セッションを作成
+    async createInitialSession(startTime) {
+        const sessionData = {
+            duration: 0, // 初期値（後で更新される）
+            distance: 0,
+            created_at: new Date(startTime).toISOString()
+        };
+
+        if (this.worker) {
+            try {
+                const result = await this.execSQL(
+                    'INSERT INTO walking_sessions (duration, distance, created_at) VALUES (?, ?, ?)',
+                    [sessionData.duration, sessionData.distance, sessionData.created_at]
+                );
+                
+                const sessionId = result.lastInsertRowId;
+                console.log('🆔 初期セッションをSQLiteに作成しました:', sessionId);
+                return sessionId;
+            } catch (error) {
+                console.error('SQLite初期セッション作成エラー:', error);
+                return this.saveSessionToLocalStorage(sessionData);
+            }
+        } else {
+            return this.saveSessionToLocalStorage(sessionData);
+        }
+    }
+
+    // セッション終了時にデータを更新
+    async updateSession(sessionId, duration) {
+        console.log('🔄 セッション更新 - ID:', sessionId, 'Duration:', duration);
+        
+        if (this.worker) {
+            try {
+                await this.execSQL(
+                    'UPDATE walking_sessions SET duration = ? WHERE id = ?',
+                    [Math.floor(duration / 1000), sessionId]
+                );
+                console.log('✅ セッション更新完了:', sessionId);
+                return sessionId;
+            } catch (error) {
+                console.error('SQLiteセッション更新エラー:', error);
+                // LocalStorageでは新規作成になってしまうが、フォールバック
+                return await this.saveSession(duration);
+            }
+        } else {
+            // LocalStorageでは更新が難しいので新規作成
+            return await this.saveSession(duration);
+        }
+    }
+
     async saveLocation(sessionId, location) {
+        console.log('💾 Saving location for session ID:', sessionId);
+        console.log('📍 Location data:', location);
+        console.log('🔄 Current session state:', this.currentSession);
+        
         const locationData = {
             session_id: sessionId,
             latitude: location.lat,
@@ -199,11 +253,12 @@ export class WalkingModel {
 
         if (this.worker) {
             try {
-                await this.execSQL(
+                const result = await this.execSQL(
                     'INSERT INTO walking_locations (session_id, latitude, longitude, timestamp, phase, created_at) VALUES (?, ?, ?, ?, ?, ?)',
                     [locationData.session_id, locationData.latitude, locationData.longitude, locationData.timestamp, locationData.phase, locationData.created_at]
                 );
                 console.log('📍 位置情報をSQLiteに保存しました:', location);
+                console.log('💾 Insert result:', result);
             } catch (error) {
                 console.error('SQLite位置情報保存エラー:', error);
                 this.saveLocationToLocalStorage(locationData);
@@ -233,11 +288,17 @@ export class WalkingModel {
     }
 
     async getLocationsBySessionId(sessionId) {
+        console.log('🔍 Getting locations for session ID:', sessionId);
+        
         if (this.worker) {
-            return await this.selectObjects('SELECT * FROM walking_locations WHERE session_id = ? ORDER BY timestamp', [sessionId]);
+            const locations = await this.selectObjects('SELECT * FROM walking_locations WHERE session_id = ? ORDER BY timestamp', [sessionId]);
+            console.log('📊 SQLite query result for session', sessionId, ':', locations);
+            return locations;
         } else {
             const locations = JSON.parse(localStorage.getItem('walkingLocations') || '[]');
-            return locations.filter(l => l.session_id == sessionId).sort((a, b) => a.timestamp - b.timestamp);
+            const filtered = locations.filter(l => l.session_id == sessionId).sort((a, b) => a.timestamp - b.timestamp);
+            console.log('📊 LocalStorage filtered result for session', sessionId, ':', filtered);
+            return filtered;
         }
     }
 

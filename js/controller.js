@@ -103,13 +103,18 @@ export class WalkingController {
     }
 
     // Walking session methods
-    startWalk() {
+    async startWalk() {
         const sessionStartTime = Date.now();
+        
+        // まず最初にセッションをデータベースに作成
+        const sessionId = await this.model.createInitialSession(sessionStartTime);
+        console.log('🆔 セッション開始 - セッションID:', sessionId);
+        
         this.model.currentSession = {
             startTime: sessionStartTime,
             intervals: []
         };
-        this.model.currentSessionId = sessionStartTime; // Use timestamp as temporary session ID
+        this.model.currentSessionId = sessionId; // 一貫したセッションIDを使用
         
         this.startTime = sessionStartTime;
         this.pauseTime = 0;
@@ -166,12 +171,12 @@ export class WalkingController {
         this.stopLocationTracking();
         
         const duration = Date.now() - this.startTime;
-        const sessionId = await this.model.saveSession(duration);
+        console.log('🛑 セッション停止 - 既存セッションを更新:', this.model.currentSessionId);
         
-        // Update session ID for final location tracking if we got a valid ID
-        if (sessionId) {
-            this.model.currentSessionId = sessionId;
-        }
+        // 既存のセッションを更新（新しいセッションを作成しない）
+        await this.model.updateSession(this.model.currentSessionId, duration);
+        
+        // 最後の位置データを同じセッションIDで保存
         await this.trackLocation();
         
         this.model.currentSession = null;
@@ -332,7 +337,11 @@ export class WalkingController {
                 return;
             }
 
+            console.log('🔍 Loading session details for session ID:', sessionId);
             const locations = await this.model.getLocationsBySessionId(sessionId);
+            console.log('📊 Retrieved locations:', locations);
+            console.log('📊 Number of locations:', locations ? locations.length : 0);
+            
             this.view.displaySessionDetails(session, locations);
         } catch (error) {
             console.error('セッション詳細読み込みエラー:', error);
