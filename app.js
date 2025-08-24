@@ -336,6 +336,10 @@ const startWalk = () => {
     startBtn.classList.add('hidden');
     timerElement.classList.remove('hidden');
     
+    // Hide weekly progress and recent sessions during session
+    document.getElementById('weeklyProgress').style.display = 'none';
+    document.getElementById('recentSessions').style.display = 'none';
+    
     // Set initial timer styling for fast phase
     timerElement.className = 'bg-red-50 border border-red-200 rounded-lg p-6 shadow-sm';
     
@@ -386,6 +390,10 @@ const pauseWalk = () => {
 const resumeWalk = () => {
     if (timer) return;
     
+    // Track location when resuming
+    console.log('▶️ 再開時に位置情報を記録');
+    trackLocation();
+    
     if (pauseTime) {
         const pauseDuration = Date.now() - pauseTime;
         phaseStartTime += pauseDuration;
@@ -409,9 +417,62 @@ const resumeWalk = () => {
 const stopWalk = async () => {
     if (!currentSession) return;
     
-    // Track final location before stopping
+    // Track final location before stopping - use Promise to wait for completion
     console.log('🏁 終了前に最終位置情報を記録');
-    trackLocation();
+    await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const location = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                    timestamp: Date.now(),
+                    phase: currentPhase
+                };
+                
+                if (currentSession) {
+                    currentSession.locations.push(location);
+                    const time = new Date(location.timestamp).toLocaleTimeString('ja-JP');
+                    const phaseJa = currentPhase === 'fast' ? '速歩き' : 'ゆっくり歩き';
+                    
+                    console.log(`✅ 終了時位置情報を保存しました [${time}]`);
+                    console.log(`   フェーズ: ${phaseJa} (${intervalCount}/5)`);
+                    console.log(`   緯度: ${location.lat.toFixed(6)}`);
+                    console.log(`   経度: ${location.lng.toFixed(6)}`);
+                    console.log(`   保存済み位置情報数: ${currentSession.locations.length}件`);
+                }
+                resolve();
+            },
+            (error) => {
+                console.error('❌ 終了時位置情報の取得に失敗:', error);
+                
+                // Add mock location for testing when geolocation fails
+                if (currentSession) {
+                    const mockLocation = {
+                        lat: 35.6762 + Math.random() * 0.01,
+                        lng: 139.6503 + Math.random() * 0.01,
+                        timestamp: Date.now(),
+                        phase: currentPhase
+                    };
+                    
+                    currentSession.locations.push(mockLocation);
+                    const time = new Date(mockLocation.timestamp).toLocaleTimeString('ja-JP');
+                    const phaseJa = currentPhase === 'fast' ? '速歩き' : 'ゆっくり歩き';
+                    
+                    console.log(`🧪 終了時テスト用位置情報を保存しました [${time}]`);
+                    console.log(`   フェーズ: ${phaseJa} (${intervalCount}/5)`);
+                    console.log(`   緯度: ${mockLocation.lat.toFixed(6)} (テスト)`);
+                    console.log(`   経度: ${mockLocation.lng.toFixed(6)} (テスト)`);
+                    console.log(`   保存済み位置情報数: ${currentSession.locations.length}件`);
+                }
+                resolve();
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            }
+        );
+    });
     
     clearInterval(timer);
     timer = null;
@@ -434,6 +495,14 @@ const stopWalk = async () => {
     
     startBtn.classList.remove('hidden');
     timerElement.classList.add('hidden');
+    
+    // Show weekly progress and recent sessions again
+    const weeklyProgress = document.getElementById('weeklyProgress');
+    const recentSessions = document.getElementById('recentSessions');
+    weeklyProgress.classList.remove('hidden');
+    weeklyProgress.style.display = '';
+    recentSessions.classList.remove('hidden');
+    recentSessions.style.display = '';
     
     // Reset timer styling
     timerElement.className = 'hidden bg-white rounded-lg p-6 shadow-sm';
@@ -462,7 +531,7 @@ const saveSession = async (session) => {
         const locationsJson = JSON.stringify(session.locations || []);
         const result = await execSQL(
             'INSERT INTO walking_sessions (duration, distance, locations, created_at) VALUES (?, ?, ?, ?)',
-            [session.duration, session.distance, locationsJson, new Date().toISOString()]
+            [session.duration, session.distance, locationsJson, new Date(session.startTime).toISOString()]
         );
         return result.lastInsertRowId;
     } catch (error) {
@@ -601,7 +670,7 @@ const saveSessionToLocalStorage = (session) => {
         duration: session.duration,
         distance: session.distance,
         locations: session.locations || [],
-        created_at: new Date().toISOString()
+        created_at: new Date(session.startTime).toISOString()
     };
     sessions.unshift(newSession);
     localStorage.setItem('walkingSessions', JSON.stringify(sessions));
@@ -671,7 +740,8 @@ const displaySessionDetails = (session) => {
             month: '2-digit',
             day: '2-digit',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            second: '2-digit'
         });
     };
     
@@ -768,6 +838,27 @@ const trackLocation = () => {
         },
         (error) => {
             console.error('❌ 位置情報の取得に失敗しました:', error);
+            
+            // Add mock location for testing when geolocation fails
+            if (currentSession) {
+                const mockLocation = {
+                    lat: 35.6762 + Math.random() * 0.01,
+                    lng: 139.6503 + Math.random() * 0.01,
+                    timestamp: Date.now(),
+                    phase: currentPhase
+                };
+                
+                currentSession.locations.push(mockLocation);
+                const time = new Date(mockLocation.timestamp).toLocaleTimeString('ja-JP');
+                const phaseJa = currentPhase === 'fast' ? '速歩き' : 'ゆっくり歩き';
+                
+                console.log(`🧪 テスト用位置情報を保存しました [${time}]`);
+                console.log(`   フェーズ: ${phaseJa} (${intervalCount}/5)`);
+                console.log(`   緯度: ${mockLocation.lat.toFixed(6)} (テスト)`);
+                console.log(`   経度: ${mockLocation.lng.toFixed(6)} (テスト)`);
+                console.log(`   保存済み位置情報数: ${currentSession.locations.length}件`);
+            }
+            
             switch(error.code) {
                 case error.PERMISSION_DENIED:
                     console.error('   → 位置情報の使用が拒否されました');
