@@ -12,80 +12,44 @@ const initSQLite = async () => {
     try {
         log('SQLite WASMを読み込み中...');
         
-        const sqliteWorker = await new Promise((resolve, reject) => {
-            const worker = new Worker('https://cdn.jsdelivr.net/npm/@sqlite.org/sqlite-wasm@3.45.1-build1/sqlite-wasm/jswasm/sqlite3-worker1-promiser.js');
-            
-            worker.onmessage = (event) => {
-                if (event.data && event.data.type === 'sqlite3-api') {
-                    if (event.data.result) {
-                        resolve(worker);
-                    } else if (event.data.error) {
-                        reject(new Error(event.data.error));
-                    }
-                }
-            };
-            
-            worker.postMessage({
-                type: 'open',
-                args: {
-                    filename: 'file:mydb.sqlite3?vfs=opfs',
-                    vfs: 'opfs'
-                }
-            });
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@sqlite.org/sqlite-wasm@3.45.1-build1/sqlite-wasm/jswasm/sqlite3.js';
+        
+        await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
         });
         
-        const sqlite3Module = await import('https://cdn.jsdelivr.net/npm/@sqlite.org/sqlite-wasm@3.45.1-build1/sqlite-wasm/jswasm/sqlite3.mjs');
-        sqlite3 = await sqlite3Module.default();
-        
-        if ('opfs' in sqlite3) {
-            log('OPFS VFSを使用して初期化中...');
-            db = new sqlite3.oo1.OpfsDb('mydb.sqlite3');
-            log('✅ SQLite WASM + OPFS の初期化完了');
-        } else {
-            log('OPFSが利用できません。メモリデータベースを使用します。');
-            db = new sqlite3.oo1.DB();
-        }
-        
-        initDatabase();
-        loadTasks();
-        
-    } catch (error) {
-        console.error('詳細なエラー:', error);
-        
-        try {
-            log('代替方法でSQLite WASMを初期化中...');
-            
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/@sqlite.org/sqlite-wasm@3.45.1-build1/sqlite-wasm/jswasm/sqlite3.js';
-            
-            await new Promise((resolve, reject) => {
-                script.onload = resolve;
-                script.onerror = reject;
-                document.head.appendChild(script);
+        if (typeof sqlite3InitModule !== 'undefined') {
+            sqlite3 = await sqlite3InitModule({
+                print: console.log,
+                printErr: console.error
             });
             
-            if (typeof sqlite3InitModule !== 'undefined') {
-                sqlite3 = await sqlite3InitModule({
-                    print: console.log,
-                    printErr: console.error
-                });
-                
-                if (sqlite3.capi.sqlite3_vfs_find('opfs')) {
-                    db = new sqlite3.oo1.OpfsDb('mydb.sqlite3');
-                    log('✅ SQLite WASM + OPFS の初期化完了（代替方法）');
-                } else {
-                    db = new sqlite3.oo1.DB();
-                    log('⚠️ OPFSが利用できません。メモリデータベースを使用します。');
+            if (window.crossOriginIsolated && sqlite3.capi.sqlite3_vfs_find('opfs')) {
+                log('OPFS VFSを使用して初期化中...');
+                db = new sqlite3.oo1.OpfsDb('mydb.sqlite3');
+                log('✅ SQLite WASM + OPFS の初期化完了');
+            } else {
+                if (!window.crossOriginIsolated) {
+                    log('⚠️ Cross-Origin Isolationが有効ではありません。ページをリロードしてください。');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                    return;
                 }
-                
-                initDatabase();
-                loadTasks();
+                db = new sqlite3.oo1.DB();
+                log('⚠️ OPFSが利用できません。メモリデータベースを使用します。');
             }
-        } catch (fallbackError) {
-            log('❌ SQLiteの初期化に失敗しました。ローカルストレージを使用します。', true);
-            console.error('Fallback error:', fallbackError);
-            initLocalStorageFallback();
+            
+            initDatabase();
+            loadTasks();
         }
+    } catch (error) {
+        console.error('エラー:', error);
+        log('❌ SQLiteの初期化に失敗しました。ローカルストレージを使用します。', true);
+        initLocalStorageFallback();
     }
 };
 

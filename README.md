@@ -101,6 +101,10 @@ INSERT INTO tasks (title) VALUES ('新しいタスク');
 
 ## 📝 注意事項
 
+### Cross-Origin Isolation (COOP/COEP)について
+GitHub PagesでOPFSを有効にするため、Service Worker (`coi-serviceworker.js`) を使用してCross-Origin Isolationのヘッダーをエミュレートしています。初回アクセス時に自動的にページがリロードされる場合があります。
+
+### その他の注意点
 - OPFSはHTTPS環境でのみ動作します（localhostは例外）
 - GitHub Pagesは自動的にHTTPSを提供するため、問題なく動作します
 - プライベートブラウジングモードでは永続性が制限される場合があります
