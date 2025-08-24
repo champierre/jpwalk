@@ -4,25 +4,68 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is currently an empty repository named "jpwalk" (based on the initial commit message "p5js-devin-nekonige", it appears to be intended for a p5.js project).
+This is a SQLite + IndexedDB sample application that runs on GitHub Pages. It demonstrates persistent data storage in the browser using sql.js and IndexedDB for a task management application.
 
 ## Development Setup
 
-Since this is an empty repository, no specific setup commands are currently defined. When developing a p5.js project, typical commands might include:
+### Local Development
+```bash
+# Start a local server (required for CORS)
+python -m http.server 8000
+# or
+npx http-server
+```
 
-- If using npm: `npm install` to install dependencies
-- If using npm: `npm start` or `npm run dev` to run development server
-- For simple p5.js projects: Open `index.html` directly in a browser
+### Testing
+- Open `http://localhost:8000` in a browser
+- Test task CRUD operations
+- Verify data persistence across browser sessions
+- Test SQL query execution
 
 ## Project Structure
 
-The repository is currently empty. For a typical p5.js project, consider this structure:
-- `index.html` - Main HTML file
-- `sketch.js` - Main p5.js sketch file
-- `style.css` - Styling
-- `package.json` - If using npm for dependencies
+```
+jpwalk/
+├── index.html              # Main HTML file with UI
+├── app.js                  # Main application logic and UI handlers
+├── sqlite-worker-simple.js # Web Worker for SQL.js operations
+├── styles.css              # Application styling
+├── README.md               # Project documentation
+└── CLAUDE.md               # This file
+```
 
-## Notes
+## Architecture
 
-- The project name suggests it may be related to "nekonige" (cat escape) based on similar projects in the parent directory
-- Consider whether this should be a standalone p5.js project or use a build system
+- **Main Thread**: Handles UI interactions and DOM manipulation
+- **Web Worker**: Runs sql.js for SQLite operations (avoids blocking UI)
+- **IndexedDB**: Provides persistent storage for the SQLite database
+- **Message Passing**: Communication between main thread and worker
+
+## Key Implementation Details
+
+### Database Operations
+- All SQL operations are performed in the Web Worker
+- Database is automatically saved to IndexedDB after modifications
+- Uses prepared statements for parameterized queries
+
+### Error Handling
+- Worker initialization failures fall back to LocalStorage
+- Database operation errors are properly caught and displayed
+- User-friendly error messages for common issues
+
+### Data Persistence
+- Database is saved to IndexedDB after every modification
+- Automatic loading of existing database on startup
+- Export/import functionality via JSON
+
+## Common Tasks
+
+### Adding New Database Operations
+1. Add method to `sqlite-worker-simple.js`
+2. Add corresponding function in `app.js`
+3. Update UI handlers as needed
+
+### Debugging
+- Check browser console for Worker messages
+- Use browser DevTools to inspect IndexedDB
+- Test with Network tab disabled to verify offline functionality

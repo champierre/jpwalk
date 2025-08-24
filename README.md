@@ -1,24 +1,25 @@
-# SQLite WASM + OPFS サンプルアプリケーション
+# SQLite + IndexedDB サンプルアプリケーション
 
-このプロジェクトは、GitHub Pagesで動作するSQLite WASM（WebAssembly）とOPFS（Origin Private File System）を使用したサンプルアプリケーションです。ブラウザ内で完全に動作する永続的なSQLiteデータベースを実装しています。
+このプロジェクトは、GitHub Pagesで動作するSQLite（sql.js）とIndexedDBを使用したサンプルアプリケーションです。ブラウザ内で完全に動作する永続的なSQLiteデータベースを実装しています。
 
 ## 🚀 デモ
 
-[GitHub Pagesでライブデモを見る](https://your-username.github.io/jpwalk/)
+[GitHub Pagesでライブデモを見る](https://champierre.github.io/jpwalk/)
 
 ## ✨ 機能
 
-- **永続的なデータ保存**: OPFSを使用してブラウザにデータを永続的に保存
+- **永続的なデータ保存**: IndexedDBを使用してブラウザにデータを永続的に保存
 - **タスク管理**: タスクの追加、完了/未完了の切り替え、削除
 - **データエクスポート**: JSON形式でデータをエクスポート
 - **SQLクエリ実行**: カスタムSQLクエリを直接実行
 - **統計情報表示**: タスクの統計情報を表示
-- **フォールバック対応**: OPFSが利用できない場合はLocalStorageを使用
+- **クロスブラウザ対応**: 全てのモダンブラウザで動作
 
 ## 🛠️ 技術スタック
 
-- **SQLite WASM**: ブラウザで動作するSQLiteのWebAssembly版
-- **OPFS (Origin Private File System)**: ブラウザの永続的ファイルシステム
+- **sql.js**: ブラウザで動作するSQLiteのEmscripten版
+- **IndexedDB**: ブラウザの永続的ストレージAPI
+- **Web Workers**: SQLiteをバックグラウンドで実行
 - **Vanilla JavaScript**: フレームワークを使用しないピュアなJavaScript
 - **HTML5 & CSS3**: モダンなUI実装
 
@@ -28,14 +29,14 @@
 
 1. このリポジトリをフォークまたはクローン
 ```bash
-git clone https://github.com/your-username/jpwalk.git
+git clone https://github.com/champierre/jpwalk.git
 cd jpwalk
 ```
 
 2. GitHubにプッシュ
 ```bash
 git add .
-git commit -m "Add SQLite WASM + OPFS sample app"
+git commit -m "Add SQLite + IndexedDB sample app"
 git push origin main
 ```
 
@@ -91,21 +92,35 @@ INSERT INTO tasks (title) VALUES ('新しいタスク');
 
 ## 🌐 ブラウザサポート
 
-| ブラウザ | OPFS サポート | フォールバック |
-|---------|--------------|---------------|
-| Chrome 102+ | ✅ | - |
-| Edge 102+ | ✅ | - |
-| Firefox 111+ | ✅ | - |
-| Safari 15.2+ | ⚠️ 部分的 | LocalStorage |
-| その他 | ❌ | LocalStorage |
+| ブラウザ | サポート | 備考 |
+|---------|----------|------|
+| Chrome 51+ | ✅ | IndexedDB対応 |
+| Firefox 47+ | ✅ | IndexedDB対応 |
+| Safari 10+ | ✅ | IndexedDB対応 |
+| Edge 79+ | ✅ | IndexedDB対応 |
+
+## 📁 プロジェクト構成
+
+```
+jpwalk/
+├── index.html              # メインHTML
+├── app.js                  # アプリケーションロジック
+├── sqlite-worker-simple.js # SQLiteワーカー
+├── styles.css              # スタイルシート
+├── README.md               # このファイル
+└── CLAUDE.md               # Claude Code用ガイド
+```
+
+## 🔧 アーキテクチャ
+
+1. **メインスレッド**: UIの管理とユーザーインタラクション
+2. **Web Worker**: sql.jsを使用したSQLite処理
+3. **IndexedDB**: データの永続化
+4. **メッセージパッシング**: メインスレッドとWorker間の通信
 
 ## 📝 注意事項
 
-### Cross-Origin Isolation (COOP/COEP)について
-GitHub PagesでOPFSを有効にするため、Service Worker (`coi-serviceworker.js`) を使用してCross-Origin Isolationのヘッダーをエミュレートしています。初回アクセス時に自動的にページがリロードされる場合があります。
-
-### その他の注意点
-- OPFSはHTTPS環境でのみ動作します（localhostは例外）
+- IndexedDBはHTTPS環境またはlocalhostでのみ動作します
 - GitHub Pagesは自動的にHTTPSを提供するため、問題なく動作します
 - プライベートブラウジングモードでは永続性が制限される場合があります
 - ブラウザのストレージ容量制限に注意してください
@@ -120,6 +135,6 @@ MIT License
 
 ## 🔗 関連リンク
 
-- [SQLite WASM公式ドキュメント](https://sqlite.org/wasm/doc/trunk/index.md)
-- [OPFS仕様](https://fs.spec.whatwg.org/)
+- [sql.js公式ドキュメント](https://sql.js.org/)
+- [IndexedDB MDN ドキュメント](https://developer.mozilla.org/ja/docs/Web/API/IndexedDB_API)
 - [GitHub Pages公式ドキュメント](https://docs.github.com/pages)
