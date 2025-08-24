@@ -13,17 +13,12 @@ const initSQLite = async () => {
     try {
         log('SQLite WASMを初期化中...');
         
-        if (!window.crossOriginIsolated) {
-            log('⚠️ Cross-Origin Isolationが有効ではありません。ページをリロードしてください。');
-            setTimeout(() => {
-                window.location.reload();
-            }, 2000);
-            return;
-        }
+        // sql.js doesn't require Cross-Origin Isolation
         
         worker = new Worker('sqlite-worker-simple.js');
         
         worker.onmessage = (event) => {
+            console.log('Worker message:', event.data);
             const { type, data, id } = event.data;
             
             switch (type) {
