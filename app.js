@@ -15,7 +15,7 @@ const initSQLite = async () => {
         
         // sql.js doesn't require Cross-Origin Isolation
         
-        worker = new Worker('sqlite-worker-simple.js');
+        worker = new Worker('sqlite-worker.js');
         
         worker.onmessage = (event) => {
             const message = event.data;
@@ -29,13 +29,7 @@ const initSQLite = async () => {
                     console.error(data);
                     break;
                 case 'initialized':
-                    if (message.useOPFS) {
-                        log('✅ SQLite WASM + OPFS の初期化完了');
-                    } else if (message.usePersistence) {
-                        log('✅ SQLite + IndexedDB の初期化完了（永続化対応）');
-                    } else {
-                        log('⚠️ メモリデータベースを使用します。');
-                    }
+                    log('✅ SQLite + IndexedDB の初期化完了（永続化対応）');
                     break;
                 case 'dbReady':
                     log(`データベース準備完了。${message.taskCount}件のタスクが保存されています。`);
