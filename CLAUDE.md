@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a SQLite + IndexedDB sample application that runs on GitHub Pages. It demonstrates persistent data storage in the browser using sql.js and IndexedDB for a task management application.
+This is an Interval Walking (インターバル速歩) web application that runs on GitHub Pages. It demonstrates persistent data storage in the browser using sql.js and IndexedDB for tracking walking sessions. The app implements a 30-minute structured walking program with alternating fast and slow walking phases.
 
 ## Development Setup
 
@@ -18,18 +18,19 @@ npx http-server
 
 ### Testing
 - Open `http://localhost:8000` in a browser
-- Test task CRUD operations
-- Verify data persistence across browser sessions
-- Test SQL query execution
+- Test walking session start/pause/stop functionality
+- Verify interval timer with 3-minute phase alternation
+- Test data persistence across browser sessions
+- Verify weekly progress statistics
 
 ## Project Structure
 
 ```
 jpwalk/
-├── index.html              # Main HTML file with UI
-├── app.js                  # Main application logic and UI handlers
-├── sqlite-worker-simple.js # Web Worker for SQL.js operations
-├── styles.css              # Application styling
+├── index.html              # Main HTML file with Tailwind CSS UI
+├── app.js                  # Walking session tracking and timer logic
+├── sqlite-worker.js        # Web Worker for SQL.js operations
+├── styles.css              # Legacy CSS (replaced by Tailwind)
 ├── README.md               # Project documentation
 └── CLAUDE.md               # This file
 ```
@@ -43,8 +44,16 @@ jpwalk/
 
 ## Key Implementation Details
 
+### Walking Session Management
+- 30-minute structured workout with 5 intervals
+- Each interval: 3 minutes fast walking + 3 minutes slow walking
+- Timer automatically switches between phases
+- Pause/resume functionality with time tracking
+- Session data stored persistently
+
 ### Database Operations
 - All SQL operations are performed in the Web Worker
+- Walking sessions table with duration, distance, timestamps
 - Database is automatically saved to IndexedDB after modifications
 - Uses prepared statements for parameterized queries
 
@@ -55,17 +64,20 @@ jpwalk/
 
 ### Data Persistence
 - Database is saved to IndexedDB after every modification
-- Automatic loading of existing database on startup
-- Export/import functionality via JSON
+- Automatic loading of existing walking sessions on startup
+- Weekly progress statistics calculated from stored sessions
 
 ## Common Tasks
 
-### Adding New Database Operations
-1. Add method to `sqlite-worker-simple.js`
-2. Add corresponding function in `app.js`
-3. Update UI handlers as needed
+### Adding New Features
+1. Add UI elements to `index.html` using Tailwind CSS classes
+2. Add corresponding event handlers in `app.js`
+3. Update database schema in `sqlite-worker.js` if needed
+4. Test both SQLite and LocalStorage fallback modes
 
 ### Debugging
-- Check browser console for Worker messages
-- Use browser DevTools to inspect IndexedDB
+- Check browser console for Worker messages and timer events
+- Use browser DevTools to inspect IndexedDB walking_sessions table
+- Test walking timer functionality in different browser states
+- Verify phase transitions and progress calculations
 - Test with Network tab disabled to verify offline functionality
