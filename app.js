@@ -245,6 +245,9 @@ const startWalk = () => {
     startBtn.classList.add('hidden');
     timerElement.classList.remove('hidden');
     
+    // Set initial timer styling for fast phase
+    timerElement.className = 'bg-red-50 border border-red-200 rounded-lg p-6 shadow-sm';
+    
     currentSession = {
         startTime: Date.now(),
         duration: 0,
@@ -321,6 +324,9 @@ const stopWalk = async () => {
     
     startBtn.classList.remove('hidden');
     timerElement.classList.add('hidden');
+    
+    // Reset timer styling
+    timerElement.className = 'hidden bg-white rounded-lg p-6 shadow-sm';
     
     // Reset session
     currentSession = null;
@@ -423,7 +429,22 @@ const updateTimeDisplay = (elapsed) => {
 const updatePhaseDisplay = () => {
     const phaseInfo = PHASES[currentPhase];
     const phaseDisplay = document.getElementById('phaseDisplay');
+    const timerElement = document.getElementById('timer');
+    
     phaseDisplay.textContent = `${intervalCount}/5 - ${phaseInfo.name}`;
+    
+    // Update colors based on phase
+    if (currentPhase === 'fast') {
+        phaseDisplay.className = 'text-lg px-4 py-2 rounded-full text-white bg-red-500 inline-block';
+        if (!timerElement.classList.contains('hidden')) {
+            timerElement.className = 'bg-red-50 border border-red-200 rounded-lg p-6 shadow-sm';
+        }
+    } else {
+        phaseDisplay.className = 'text-lg px-4 py-2 rounded-full text-white bg-blue-500 inline-block';
+        if (!timerElement.classList.contains('hidden')) {
+            timerElement.className = 'bg-blue-50 border border-blue-200 rounded-lg p-6 shadow-sm';
+        }
+    }
 };
 
 const initLocalStorageFallback = () => {
