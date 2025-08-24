@@ -1,7 +1,5 @@
-// Get the base URL for the worker
-const baseUrl = self.location.href.substring(0, self.location.href.lastIndexOf('/'));
-
-importScripts(baseUrl + '/lib/sqlite3.js');
+// Use CDN version instead of local files to avoid path issues
+importScripts('https://cdn.jsdelivr.net/npm/@sqlite.org/sqlite-wasm@3.45.1-build1/sqlite-wasm/jswasm/sqlite3.js');
 
 let sqlite3;
 let db;
@@ -10,17 +8,12 @@ const initializeSQLite = async () => {
     try {
         sqlite3 = await sqlite3InitModule({
             print: (...args) => postMessage({ type: 'log', data: args.join(' ') }),
-            printErr: (...args) => postMessage({ type: 'error', data: args.join(' ') }),
-            locateFile: (filename) => {
-                if (filename === 'sqlite3.wasm') {
-                    return baseUrl + '/lib/sqlite3.wasm';
-                }
-                return filename;
-            }
+            printErr: (...args) => postMessage({ type: 'error', data: args.join(' ') })
         });
         
         if (sqlite3.capi.sqlite3_vfs_find('opfs')) {
-            db = new sqlite3.oo1.OpfsDb('mydb.sqlite3');
+            // Use absolute path for OPFS (required by the VFS)
+            db = new sqlite3.oo1.OpfsDb('/mydb.sqlite3');
             postMessage({ type: 'initialized', useOPFS: true });
         } else {
             db = new sqlite3.oo1.DB();
