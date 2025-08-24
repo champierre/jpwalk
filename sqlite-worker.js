@@ -1,4 +1,7 @@
-importScripts('./lib/sqlite3.js');
+// Get the base URL for the worker
+const baseUrl = self.location.href.substring(0, self.location.href.lastIndexOf('/'));
+
+importScripts(baseUrl + '/lib/sqlite3.js');
 
 let sqlite3;
 let db;
@@ -10,7 +13,7 @@ const initializeSQLite = async () => {
             printErr: (...args) => postMessage({ type: 'error', data: args.join(' ') }),
             locateFile: (filename) => {
                 if (filename === 'sqlite3.wasm') {
-                    return './lib/sqlite3.wasm';
+                    return baseUrl + '/lib/sqlite3.wasm';
                 }
                 return filename;
             }
