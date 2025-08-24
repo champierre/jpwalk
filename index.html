@@ -3,42 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SQLite + IndexedDB デモ</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>インターバル速歩 - Japanese Walking</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'walking-green': '#4CAF50',
+                        'walking-dark': '#2E7D32'
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <div class="container">
-        <h1>📚 SQLite + IndexedDB サンプル</h1>
-        <p class="subtitle">ブラウザ内で動作する永続的なSQLiteデータベース</p>
-        
-        <div id="status" class="status">初期化中...</div>
-        
-        <div class="section">
-            <h2>タスク管理アプリ</h2>
-            
-            <div class="input-group">
-                <input type="text" id="taskInput" placeholder="新しいタスクを入力">
-                <button id="addBtn">追加</button>
+<body class="bg-gray-50 min-h-screen">
+    <div class="max-w-md mx-auto px-4 py-6">
+        <!-- Main View -->
+        <div id="mainView">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <img src="icon.png" alt="Japanese Walking" class="w-20 h-20 mx-auto mb-4">
+                <h1 class="text-3xl font-bold text-gray-800">Japanese Walking</h1>
+                <p class="text-gray-600 mt-2">インターバル速歩で健康習慣を身につけよう</p>
             </div>
             
-            <div id="taskList" class="task-list"></div>
-        </div>
-        
-        <div class="section">
-            <h2>データベース操作</h2>
-            <div class="button-group">
-                <button id="exportBtn">データをエクスポート</button>
-                <button id="clearBtn">全データを削除</button>
-                <button id="statsBtn">統計情報</button>
+            <!-- Start Button -->
+        <div class="mb-8">
+            <button id="startWalkBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-lg font-semibold transition-colors">
+                ウォーキングを開始
+            </button>
+            <div id="timer" class="hidden bg-white rounded-lg p-6 shadow-sm">
+                <div class="mb-6">
+                    <span id="timeDisplay" class="text-5xl font-bold text-gray-800 block mb-3">00:00</span>
+                    <div id="phaseDisplay" class="text-lg px-4 py-2 rounded-full text-white bg-blue-500 inline-block">準備中</div>
+                </div>
+                <div class="flex gap-3 justify-center">
+                    <button id="pauseBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">一時停止</button>
+                    <button id="stopBtn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg">終了</button>
+                </div>
             </div>
-            <pre id="output" class="output"></pre>
         </div>
         
-        <div class="section">
-            <h2>SQLクエリ実行</h2>
-            <textarea id="sqlInput" placeholder="SELECT * FROM tasks;" rows="3"></textarea>
-            <button id="executeBtn">実行</button>
-            <pre id="queryResult" class="output"></pre>
+        <!-- Weekly Progress -->
+        <div class="bg-white rounded-lg p-6 mb-6 shadow-sm">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">今週の進捗</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="text-center">
+                    <span id="weeklyCount" class="text-3xl font-bold text-blue-500 block">0</span>
+                    <span class="text-gray-600 text-sm">セッション</span>
+                </div>
+                <div class="text-center">
+                    <span id="weeklyDuration" class="text-3xl font-bold text-blue-500 block">0</span>
+                    <span class="text-gray-600 text-sm">分</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Sessions -->
+        <div class="bg-white rounded-lg p-6 mb-6 shadow-sm">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">最近のセッション</h2>
+            <div id="sessionList" class="space-y-3"></div>
+        </div>
+        
+        <!-- About Interval Walking -->
+        <div class="bg-white rounded-lg p-6 shadow-sm">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4"><a href="https://www.shinshu-u.ac.jp/zukan/cooperation/i-walk.html" target="_blank" class="hover:text-blue-600 transition-colors">インターバル速歩</a>とは？</h2>
+            <div class="text-gray-700 space-y-3">
+                <p>🚶‍♂️ 3分速歩き + 3分ゆっくり歩きを交互に繰り返す</p>
+                <p>⏱️ 1日30分（5セット）</p>
+                <p>📅 週4回以上を目標</p>
+                <p>💪 筋力・持久力・血圧改善に効果的</p>
+                <p class="text-xs text-gray-500 mt-4">※このアプリはNPO法人熟年体育大学リサーチセンターが登録商標を持っている「<a href="https://www.shinshu-u.ac.jp/zukan/cooperation/i-walk.html" target="_blank" class="hover:text-blue-600 transition-colors underline">インターバル速歩</a>」を参考にしています</p>
+            </div>
+        </div>
+        </div>
+        
+        <!-- Session Detail View -->
+        <div id="sessionView" class="hidden">
+            <!-- Header -->
+            <div class="mb-6">
+                <button id="backBtn" class="text-blue-500 hover:text-blue-600 text-sm mb-2 inline-block">← 戻る</button>
+                <h1 class="text-2xl font-bold text-gray-800">ウォーキングセッション</h1>
+            </div>
+
+            <!-- Session Status -->
+            <div class="bg-green-100 text-green-800 px-3 py-1 rounded-full inline-block mb-4 text-sm font-medium">
+                完了
+            </div>
+
+            <!-- Session Details -->
+            <div class="bg-white rounded-lg p-6 shadow-sm mb-6">
+                <div class="space-y-4">
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">開始時刻</span>
+                        <span id="startTime" class="text-gray-800 font-medium">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">終了時刻</span>
+                        <span id="endTime" class="text-gray-800 font-medium">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">時間</span>
+                        <span id="duration" class="text-gray-800 font-medium">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-600">距離</span>
+                        <span id="distance" class="text-gray-800 font-medium">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Route Map Section -->
+            <div class="bg-white rounded-lg p-6 shadow-sm mb-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">ルートマップ</h2>
+                <div id="mapContainer" class="rounded-lg overflow-hidden h-64">
+                    <div id="map" class="w-full h-full"></div>
+                </div>
+                <div class="mt-4 space-y-2">
+                    <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 bg-red-500 rounded"></div>
+                        <span class="text-sm text-red-600 font-medium">速歩き区間</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <div class="w-4 h-4 bg-blue-500 rounded"></div>
+                        <span class="text-sm text-blue-600 font-medium">ゆっくり歩き区間</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Button -->
+            <button id="deleteBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm">
+                削除
+            </button>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 max-w-sm w-full">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">セッションの削除</h3>
+            <p class="text-gray-600 mb-6">このセッションを削除してもよろしいですか？</p>
+            <div class="flex gap-3 justify-end">
+                <button id="cancelBtn" class="px-4 py-2 text-gray-600 hover:text-gray-800">
+                    キャンセル
+                </button>
+                <button id="confirmDeleteBtn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                    削除する
+                </button>
+            </div>
         </div>
     </div>
     

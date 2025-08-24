@@ -73,23 +73,49 @@ const initializeSQLite = async () => {
         }
         
         // Initialize database schema
-        db.run(`
-            CREATE TABLE IF NOT EXISTS tasks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT NOT NULL,
-                completed BOOLEAN DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
+        // First, check if the table exists and if it has the locations column
+        try {
+            const tableInfo = db.exec("PRAGMA table_info(walking_sessions)");
+            if (tableInfo.length > 0) {
+                const columns = tableInfo[0].values.map(row => row[1]); // column names are at index 1
+                if (!columns.includes('locations')) {
+                    // Add locations column to existing table
+                    db.run('ALTER TABLE walking_sessions ADD COLUMN locations TEXT');
+                    postMessage({ type: 'log', data: 'Added locations column to existing table' });
+                }
+            } else {
+                // Create new table
+                db.run(`
+                    CREATE TABLE walking_sessions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        duration INTEGER NOT NULL,
+                        distance REAL DEFAULT 0,
+                        locations TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                `);
+            }
+        } catch (error) {
+            // If there's any error, try to create the table
+            db.run(`
+                CREATE TABLE IF NOT EXISTS walking_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    duration INTEGER NOT NULL,
+                    distance REAL DEFAULT 0,
+                    locations TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+        }
         
         // Save to IndexedDB
         await saveToIndexedDB(db.export());
         
-        const countResult = db.exec('SELECT COUNT(*) as count FROM tasks');
+        const countResult = db.exec('SELECT COUNT(*) as count FROM walking_sessions');
         const count = countResult[0]?.values[0][0] || 0;
         
         postMessage({ type: 'initialized' });
-        postMessage({ type: 'dbReady', taskCount: count });
+        postMessage({ type: 'dbReady', sessionCount: count });
         
     } catch (error) {
         postMessage({ type: 'initError', data: { error: error.message } });
