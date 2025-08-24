@@ -1,27 +1,30 @@
-# SQLite + IndexedDB サンプルアプリケーション
+# Japanese Walking (インターバル速歩) アプリ
 
-このプロジェクトは、GitHub Pagesで動作するSQLite（sql.js）とIndexedDBを使用したサンプルアプリケーションです。ブラウザ内で完全に動作する永続的なSQLiteデータベースを実装しています。
+信州大学のインターバル速歩を参考にした、ブラウザで動作するウォーキング習慣管理アプリです。SQLite（sql.js）とIndexedDBを使用してセッション履歴を永続的に保存します。
 
-## 🚀 デモ
+## 🚀 アプリ
 
-[GitHub Pagesでライブデモを見る](https://champierre.github.io/jpwalk/)
+このアプリは GitHub Pages で公開されています。
 
 ## ✨ 機能
 
-- **永続的なデータ保存**: IndexedDBを使用してブラウザにデータを永続的に保存
-- **タスク管理**: タスクの追加、完了/未完了の切り替え、削除
-- **データエクスポート**: JSON形式でデータをエクスポート
-- **SQLクエリ実行**: カスタムSQLクエリを直接実行
-- **統計情報表示**: タスクの統計情報を表示
-- **クロスブラウザ対応**: 全てのモダンブラウザで動作
+- **インターバル速歩タイマー**: 3分間の速歩き + 3分間のゆっくり歩きを5セット（30分）
+- **リアルタイム位置追跡**: GPS位置情報を記録してルートマップに表示
+- **永続的なデータ保存**: IndexedDBを使用してセッション履歴を保存
+- **セッション履歴管理**: 過去のウォーキングセッションの詳細表示と削除
+- **週間進捗表示**: 今週のセッション数と総時間の統計
+- **ページネーション**: セッション一覧の10件ずつ表示
+- **オフライン対応**: ネットワーク接続不要で動作
 
 ## 🛠️ 技術スタック
 
 - **sql.js**: ブラウザで動作するSQLiteのEmscripten版
 - **IndexedDB**: ブラウザの永続的ストレージAPI
 - **Web Workers**: SQLiteをバックグラウンドで実行
+- **Leaflet.js**: インタラクティブな地図表示とルート描画
+- **Geolocation API**: GPS位置情報の取得
+- **Tailwind CSS**: ユーティリティファーストCSSフレームワーク
 - **Vanilla JavaScript**: フレームワークを使用しないピュアなJavaScript
-- **HTML5 & CSS3**: モダンなUI実装
 
 ## 📦 セットアップ
 
@@ -66,29 +69,23 @@ npx http-server
 
 ## 🔧 使い方
 
-### タスク管理
-1. テキストボックスに新しいタスクを入力
-2. 「追加」ボタンをクリックまたはEnterキー
-3. チェックボックスでタスクの完了状態を切り替え
-4. 「削除」ボタンで個別のタスクを削除
+### インターバル速歩セッション
+1. 「ウォーキングを開始」ボタンをクリック
+2. 3分間の速歩き（赤色表示）と3分間のゆっくり歩き（青色表示）を交互に実行
+3. 5セット（30分）の完全なワークアウト
+4. 一時停止・再開・終了が可能
 
-### データベース操作
-- **エクスポート**: すべてのタスクをJSON形式でダウンロード
-- **全削除**: すべてのタスクを削除（確認ダイアログあり）
-- **統計情報**: タスクの統計を表示
+### 位置情報追跡
+- GPS位置情報を自動的に記録
+- セッション詳細でルートマップを表示
+- 開始・終了地点にマーカー表示
+- 位置情報データの詳細表示（時刻、フェーズ、緯度、経度）
 
-### SQLクエリ実行
-テキストエリアに直接SQLクエリを入力して実行：
-```sql
--- 例：すべてのタスクを表示
-SELECT * FROM tasks;
-
--- 例：完了したタスクのみ表示
-SELECT * FROM tasks WHERE completed = 1;
-
--- 例：タスクを直接追加
-INSERT INTO tasks (title) VALUES ('新しいタスク');
-```
+### セッション履歴
+- 今週の進捗統計（セッション数、総時間）
+- 最近のセッション3件の表示
+- 全セッション一覧（10件ずつページネーション表示）
+- セッション詳細の表示・削除
 
 ## 🌐 ブラウザサポート
 
@@ -103,27 +100,29 @@ INSERT INTO tasks (title) VALUES ('新しいタスク');
 
 ```
 jpwalk/
-├── index.html              # メインHTML
-├── app.js                  # アプリケーションロジック
-├── sqlite-worker-simple.js # SQLiteワーカー
-├── styles.css              # スタイルシート
+├── index.html              # メインHTML（Tailwind CSS UI）
+├── app.js                  # ウォーキングセッション管理とタイマーロジック
+├── sqlite-worker.js        # Web Worker for SQL.js operations
+├── icon.png               # アプリケーションアイコン
 ├── README.md               # このファイル
 └── CLAUDE.md               # Claude Code用ガイド
 ```
 
 ## 🔧 アーキテクチャ
 
-1. **メインスレッド**: UIの管理とユーザーインタラクション
+1. **メインスレッド**: UI操作とインターバルタイマー管理
 2. **Web Worker**: sql.jsを使用したSQLite処理
-3. **IndexedDB**: データの永続化
-4. **メッセージパッシング**: メインスレッドとWorker間の通信
+3. **IndexedDB**: ウォーキングセッションデータの永続化
+4. **Geolocation API**: GPS位置情報の取得
+5. **Leaflet.js**: ルートマップの表示とマーカー管理
 
 ## 📝 注意事項
 
+- 位置情報の使用許可が必要です（初回起動時にブラウザが許可を求めます）
 - IndexedDBはHTTPS環境またはlocalhostでのみ動作します
 - GitHub Pagesは自動的にHTTPSを提供するため、問題なく動作します
+- 位置情報が取得できない場合は東京駅周辺のモックデータを使用します
 - プライベートブラウジングモードでは永続性が制限される場合があります
-- ブラウザのストレージ容量制限に注意してください
 
 ## 🤝 貢献
 
@@ -135,6 +134,9 @@ MIT License
 
 ## 🔗 関連リンク
 
+- [インターバル速歩 - 信州大学](https://www.shinshu-u.ac.jp/zukan/cooperation/i-walk.html)
 - [sql.js公式ドキュメント](https://sql.js.org/)
+- [Leaflet.js公式ドキュメント](https://leafletjs.com/)
+- [Tailwind CSS公式ドキュメント](https://tailwindcss.com/)
 - [IndexedDB MDN ドキュメント](https://developer.mozilla.org/ja/docs/Web/API/IndexedDB_API)
-- [GitHub Pages公式ドキュメント](https://docs.github.com/pages)
+- [Geolocation API MDN ドキュメント](https://developer.mozilla.org/ja/docs/Web/API/Geolocation_API)
