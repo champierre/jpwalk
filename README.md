@@ -2,7 +2,7 @@
 
 信州大学のインターバル速歩を参考にした、ブラウザで動作するウォーキング習慣管理アプリです。SQLite（sql.js）とIndexedDBを使用してセッション履歴を永続的に保存します。
 
-※このアプリはNPO法人熟年体育大学リサーチセンターが登録商標を持っている「[インターバル速歩](https://www.shinshu-u.ac.jp/zukan/cooperation/i-walk.html)」を参考にしています
+※ 「[インターバル速歩](https://www.shinshu-u.ac.jp/zukan/cooperation/i-walk.html)」はNPO法人熟年体育大学リサーチセンターの登録商標です。
 
 ## 🚀 アプリ
 
