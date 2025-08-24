@@ -298,7 +298,11 @@ export class WalkingController {
                 sessionList.appendChild(this.view.addSessionToDOM(session));
             });
 
-            this.view.showMoreSessionsButton();
+            // Only show "Show more" button if there are more than 3 sessions total
+            const { totalCount } = await this.model.getAllSessions(1, 1);
+            if (totalCount > 3) {
+                this.view.showMoreSessionsButton();
+            }
         } catch (error) {
             console.error('セッション読み込みエラー:', error);
         }
