@@ -175,6 +175,19 @@
             <!-- Sessions List -->
             <div class="bg-white rounded-lg p-6 shadow-sm mb-6">
                 <div id="allSessionsList" class="space-y-3"></div>
+                
+                <!-- Pagination Controls -->
+                <div id="paginationControls" class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                    <button id="prevPageBtn" class="px-4 py-2 text-blue-500 hover:text-blue-600 disabled:text-gray-400 disabled:cursor-not-allowed">
+                        ← 前のページ
+                    </button>
+                    <div id="pageInfo" class="text-sm text-gray-600">
+                        ページ <span id="currentPage">1</span> / <span id="totalPages">1</span>
+                    </div>
+                    <button id="nextPageBtn" class="px-4 py-2 text-blue-500 hover:text-blue-600 disabled:text-gray-400 disabled:cursor-not-allowed">
+                        次のページ →
+                    </button>
+                </div>
             </div>
         </div>
     </div>
