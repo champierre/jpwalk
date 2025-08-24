@@ -107,18 +107,30 @@ self.onmessage = async (event) => {
                 
             case 'exec':
                 try {
+                    let lastInsertRowId = null;
+                    
                     if (data.bind) {
                         const stmt = db.prepare(data.sql);
-                        stmt.run(data.bind);
+                        const info = stmt.run(data.bind);
+                        // For INSERT statements, get the last inserted row ID
+                        if (data.sql.trim().toLowerCase().startsWith('insert')) {
+                            const result = db.exec('SELECT last_insert_rowid() as id');
+                            lastInsertRowId = result[0]?.values[0]?.[0] || null;
+                        }
                         stmt.free();
                     } else {
                         db.run(data.sql);
+                        // For INSERT statements, get the last inserted row ID
+                        if (data.sql.trim().toLowerCase().startsWith('insert')) {
+                            const result = db.exec('SELECT last_insert_rowid() as id');
+                            lastInsertRowId = result[0]?.values[0]?.[0] || null;
+                        }
                     }
                     
                     // Save to IndexedDB after modification
                     await saveToIndexedDB(db.export());
                     
-                    postMessage({ type: 'execResult', id: data.id, result: 'OK' });
+                    postMessage({ type: 'execResult', id: data.id, result: { lastInsertRowId } });
                 } catch (error) {
                     postMessage({ type: 'execError', id: data.id, error: error.message });
                 }
