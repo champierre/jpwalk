@@ -161,11 +161,21 @@ const addTask = async () => {
     }
     
     try {
-        await execSQL('INSERT INTO tasks (title) VALUES (?)', [title]);
-        const newTask = await selectObject('SELECT * FROM tasks WHERE id = last_insert_rowid()');
-        addTaskToDOM(newTask);
-        input.value = '';
-        log('タスクを追加しました');
+        const result = await execSQL('INSERT INTO tasks (title) VALUES (?)', [title]);
+        const insertId = result.lastInsertRowId;
+        
+        if (insertId) {
+            const newTask = await selectObject('SELECT * FROM tasks WHERE id = ?', [insertId]);
+            if (newTask) {
+                addTaskToDOM(newTask);
+                input.value = '';
+                log('タスクを追加しました');
+            } else {
+                throw new Error('Failed to retrieve newly inserted task');
+            }
+        } else {
+            throw new Error('Failed to get insert ID');
+        }
     } catch (error) {
         console.error('Error adding task:', error);
         log('タスクの追加に失敗しました', true);
