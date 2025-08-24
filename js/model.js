@@ -17,11 +17,23 @@ export class WalkingModel {
             this.worker = new Worker('sqlite-worker.js');
             
             this.worker.onmessage = (event) => {
-                const { id, result, error } = event.data;
+                const { type, id, result, error, data } = event.data;
+                
+                if (type === 'log') {
+                    console.log(data);
+                    return;
+                }
+                
+                if (type === 'dbReady') {
+                    console.log('✅ SQLite + IndexedDB の初期化完了（永続化対応）');
+                    document.dispatchEvent(new CustomEvent('dbReady'));
+                    return;
+                }
+                
                 const promise = this.pendingRequests.get(id);
                 if (promise) {
                     this.pendingRequests.delete(id);
-                    if (error) {
+                    if (error || type.includes('Error')) {
                         promise.reject(new Error(error));
                     } else {
                         promise.resolve(result);
@@ -34,30 +46,10 @@ export class WalkingModel {
                 this.initLocalStorageFallback();
             };
 
-            await this.execSQL(`
-                CREATE TABLE IF NOT EXISTS walking_sessions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    duration INTEGER NOT NULL,
-                    distance REAL DEFAULT 0,
-                    created_at TEXT NOT NULL
-                )
-            `);
+            // Initialize the worker
+            this.worker.postMessage({ type: 'init' });
 
-            await this.execSQL(`
-                CREATE TABLE IF NOT EXISTS walking_locations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id INTEGER NOT NULL,
-                    latitude REAL NOT NULL,
-                    longitude REAL NOT NULL,
-                    timestamp INTEGER NOT NULL,
-                    phase TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    FOREIGN KEY (session_id) REFERENCES walking_sessions (id)
-                )
-            `);
-
-            console.log('SQLite データベースが初期化されました');
-            document.dispatchEvent(new CustomEvent('dbReady'));
+            // Wait for dbReady event from worker instead of manually creating tables
             
         } catch (error) {
             console.error('SQLite 初期化エラー:', error);
@@ -90,10 +82,13 @@ export class WalkingModel {
             this.pendingRequests.set(id, { resolve, reject });
             
             this.worker.postMessage({
+                type: 'exec',
                 id,
-                action: 'exec',
-                query,
-                params
+                data: {
+                    id,
+                    sql: query,
+                    bind: params.length > 0 ? params : null
+                }
             });
         });
     }
@@ -109,10 +104,13 @@ export class WalkingModel {
             this.pendingRequests.set(id, { resolve, reject });
             
             this.worker.postMessage({
+                type: 'selectObjects',
                 id,
-                action: 'select',
-                query,
-                params
+                data: {
+                    id,
+                    sql: query,
+                    bind: params.length > 0 ? params : null
+                }
             });
         });
     }
@@ -123,8 +121,25 @@ export class WalkingModel {
     }
 
     async selectValue(query, params = []) {
-        const result = await this.selectObject(query, params);
-        return result ? Object.values(result)[0] : null;
+        if (!this.worker) {
+            const result = await this.selectObject(query, params);
+            return result ? Object.values(result)[0] : null;
+        }
+
+        return new Promise((resolve, reject) => {
+            const id = ++this.requestId;
+            this.pendingRequests.set(id, { resolve, reject });
+            
+            this.worker.postMessage({
+                type: 'selectValue',
+                id,
+                data: {
+                    id,
+                    sql: query,
+                    bind: params.length > 0 ? params : null
+                }
+            });
+        });
     }
 
     // Session management
@@ -142,7 +157,8 @@ export class WalkingModel {
                     [sessionData.duration, sessionData.distance, sessionData.created_at]
                 );
                 
-                const sessionId = await this.selectValue('SELECT last_insert_rowid()');
+                // Get the session ID from the exec result
+                const sessionId = result.lastInsertRowId;
                 console.log('セッションをSQLiteに保存しました:', sessionId);
                 return sessionId;
             } catch (error) {

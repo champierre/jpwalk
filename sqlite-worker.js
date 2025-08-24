@@ -73,7 +73,7 @@ const initializeSQLite = async () => {
         }
         
         // Initialize database schema
-        // First, check if the table exists and if it has the locations column
+        // Create walking_sessions table
         try {
             const tableInfo = db.exec("PRAGMA table_info(walking_sessions)");
             if (tableInfo.length > 0) {
@@ -106,6 +106,25 @@ const initializeSQLite = async () => {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             `);
+        }
+
+        // Create walking_locations table
+        try {
+            db.run(`
+                CREATE TABLE IF NOT EXISTS walking_locations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id INTEGER NOT NULL,
+                    latitude REAL NOT NULL,
+                    longitude REAL NOT NULL,
+                    timestamp INTEGER NOT NULL,
+                    phase TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (session_id) REFERENCES walking_sessions (id)
+                )
+            `);
+            postMessage({ type: 'log', data: 'Created walking_locations table' });
+        } catch (error) {
+            postMessage({ type: 'log', data: 'walking_locations table creation error: ' + error.message });
         }
         
         // Save to IndexedDB
