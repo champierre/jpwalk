@@ -35,8 +35,11 @@
             
             <!-- Start Button -->
         <div class="mb-8">
-            <button id="startWalkBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg text-lg font-semibold transition-colors">
-                ウォーキングを開始
+            <button id="startWalkBtn" class="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg text-lg font-semibold transition-colors flex items-center justify-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                </svg>
+                <span>ウォーキングを開始</span>
             </button>
             <div id="timer" class="hidden bg-white rounded-lg p-6 shadow-sm">
                 <div class="mb-6">
@@ -44,8 +47,18 @@
                     <div id="phaseDisplay" class="text-lg px-4 py-2 rounded-full text-white bg-blue-500 inline-block">準備中</div>
                 </div>
                 <div class="flex gap-3 justify-center">
-                    <button id="pauseBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">一時停止</button>
-                    <button id="stopBtn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg">終了</button>
+                    <button id="pauseBtn" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9v6m-4.5 0V9M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>一時停止</span>
+                    </button>
+                    <button id="stopBtn" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5.25 7.5A2.25 2.25 0 017.5 5.25h9a2.25 2.25 0 012.25 2.25v9a2.25 2.25 0 01-2.25 2.25h-9a2.25 2.25 0 01-2.25-2.25v-9z" />
+                        </svg>
+                        <span>終了</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -137,10 +150,32 @@
                 </div>
             </div>
 
+            <!-- Location Data Section -->
+            <div class="bg-white rounded-lg p-6 shadow-sm mb-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4">位置情報データ</h2>
+                <div id="locationsList" class="max-h-64 overflow-y-auto">
+                    <p class="text-gray-500 text-sm">位置情報がありません</p>
+                </div>
+            </div>
+
             <!-- Delete Button -->
             <button id="deleteBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm">
                 削除
             </button>
+        </div>
+        
+        <!-- All Sessions List View -->
+        <div id="sessionsView" class="hidden">
+            <!-- Header -->
+            <div class="mb-6">
+                <button id="backToMainBtn" class="text-blue-500 hover:text-blue-600 text-sm mb-2 inline-block">← 戻る</button>
+                <h1 class="text-2xl font-bold text-gray-800">すべてのセッション</h1>
+            </div>
+
+            <!-- Sessions List -->
+            <div class="bg-white rounded-lg p-6 shadow-sm mb-6">
+                <div id="allSessionsList" class="space-y-3"></div>
+            </div>
         </div>
     </div>
 
