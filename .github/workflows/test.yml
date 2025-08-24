@@ -35,10 +35,28 @@ jobs:
           exit 1
         fi
 
+    - name: Check location data debug logs
+      run: |
+        echo "Verifying location data debug logging is enabled..."
+        if grep -q "🔍 Getting locations for session ID" js/model.js; then
+          echo "✅ Location data debug logging is enabled"
+        else
+          echo "❌ Location data debug logging missing"
+          exit 1
+        fi
+
+    - name: Run location data regression tests
+      run: |
+        echo "Running location data specific tests..."
+        npm test -- --testPathPattern=location
+        echo "Location data regression tests completed"
+
     - name: Test results summary
       if: always()
       run: |
         echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
         echo "- Dialog z-index fix: Applied" >> $GITHUB_STEP_SUMMARY
-        echo "- Test coverage: Session deletion dialog functionality" >> $GITHUB_STEP_SUMMARY
-        echo "- Regression prevention: Enabled" >> $GITHUB_STEP_SUMMARY
+        echo "- Location data regression tests: Enabled" >> $GITHUB_STEP_SUMMARY
+        echo "- Test coverage: Session deletion dialog + Location data retrieval" >> $GITHUB_STEP_SUMMARY
+        echo "- Debug logging: Enabled for location data issues" >> $GITHUB_STEP_SUMMARY
+        echo "- Regression prevention: Enabled for UI and data issues" >> $GITHUB_STEP_SUMMARY
