@@ -124,7 +124,7 @@ describe('Location Data Management', () => {
                     second: '2-digit'
                 });
                 
-                const phaseColor = location.phase === 'fast' ? 'text-red-600' : 'text-blue-600';
+                const phaseColor = location.phase === 'fast' ? 'text-orange-600' : 'text-blue-600';
                 const phaseName = location.phase === 'fast' ? '速歩き' : 'ゆっくり歩き';
                 
                 row.innerHTML = `

@@ -18,8 +18,8 @@ export class WalkingView {
         
         if (phase === 'fast') {
             phaseDisplay.textContent = '速歩き';
-            phaseDisplay.className = 'text-lg px-4 py-2 rounded-full text-white bg-red-500 inline-block';
-            timer.className = 'bg-red-50 border-2 border-red-200 rounded-lg p-6 shadow-sm';
+            phaseDisplay.className = 'text-lg px-4 py-2 rounded-full text-white bg-orange-500 inline-block';
+            timer.className = 'bg-orange-50 border-2 border-orange-200 rounded-lg p-6 shadow-sm';
         } else if (phase === 'slow') {
             phaseDisplay.textContent = 'ゆっくり歩き';
             phaseDisplay.className = 'text-lg px-4 py-2 rounded-full text-white bg-blue-500 inline-block';
@@ -255,7 +255,7 @@ export class WalkingView {
                 second: '2-digit'
             });
             
-            const phaseColor = location.phase === 'fast' ? 'text-red-600' : 'text-blue-600';
+            const phaseColor = location.phase === 'fast' ? 'text-orange-600' : 'text-blue-600';
             const phaseName = location.phase === 'fast' ? '速歩き' : 'ゆっくり歩き';
             
             row.innerHTML = `
