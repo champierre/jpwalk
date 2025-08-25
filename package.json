@@ -5,7 +5,8 @@
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",
-    "serve": "npx http-server"
+    "serve": "npx http-server",
+    "dev": "npx http-server"
   },
   "devDependencies": {
     "jest": "^29.0.0",
