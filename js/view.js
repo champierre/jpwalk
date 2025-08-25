@@ -340,4 +340,31 @@ export class WalkingView {
             window.location.hash = '#sessions';
         });
     }
+
+    // Data Management UI methods
+    showDataManagementModal() {
+        document.getElementById('dataModal').classList.remove('hidden');
+    }
+
+    hideDataManagementModal() {
+        document.getElementById('dataModal').classList.add('hidden');
+    }
+
+    showExportSuccess(metadata) {
+        const message = `データのエクスポートが完了しました！\n\nセッション数: ${metadata.totalSessions}\n位置情報数: ${metadata.totalLocations}`;
+        alert(message);
+    }
+
+    showExportError(errorMessage) {
+        alert(`エクスポートに失敗しました:\n${errorMessage}`);
+    }
+
+    showImportSuccess(result) {
+        const message = `データのインポートが完了しました！\n\nインポート済み:\n- セッション: ${result.imported.sessions}/${result.total.sessions}\n- 位置情報: ${result.imported.locations}/${result.total.locations}`;
+        alert(message);
+    }
+
+    showImportError(errorMessage) {
+        alert(`インポートに失敗しました:\n${errorMessage}`);
+    }
 }

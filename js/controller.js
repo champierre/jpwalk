@@ -71,6 +71,22 @@ export class WalkingController {
         document.getElementById('confirmDeleteBtn').addEventListener('click', () => this.deleteCurrentSession());
         document.getElementById('prevPageBtn').addEventListener('click', () => this.goToPreviousPage());
         document.getElementById('nextPageBtn').addEventListener('click', () => this.goToNextPage());
+        
+        // Data management event listeners
+        document.getElementById('dataManagementBtn').addEventListener('click', () => this.showDataManagement());
+        document.getElementById('closeDataModalBtn').addEventListener('click', () => this.hideDataManagement());
+        document.getElementById('exportBtn').addEventListener('click', () => this.exportData());
+        document.getElementById('importBtn').addEventListener('click', () => {
+            document.getElementById('importFileInput').click();
+        });
+        document.getElementById('importFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const mergeMode = document.getElementById('mergeCheckbox').checked;
+                this.importData(file, { merge: mergeMode });
+                e.target.value = ''; // Reset file input
+            }
+        });
     }
 
     // Navigation methods
@@ -285,6 +301,7 @@ export class WalkingController {
     async loadSessions() {
         try {
             const sessions = await this.model.getRecentSessions(3);
+            const allSessionsCount = await this.model.getAllSessionsCount();
             this.view.clearSessionLists();
             
             const sessionList = document.getElementById('sessionList');
@@ -298,7 +315,10 @@ export class WalkingController {
                 sessionList.appendChild(this.view.addSessionToDOM(session));
             });
 
-            this.view.showMoreSessionsButton();
+            // Show "more" button only if there are more than 3 sessions total
+            if (allSessionsCount > 3) {
+                this.view.showMoreSessionsButton();
+            }
         } catch (error) {
             console.error('セッション読み込みエラー:', error);
         }
@@ -372,6 +392,86 @@ export class WalkingController {
         } catch (error) {
             console.error('週間統計読み込みエラー:', error);
         }
+    }
+
+    // Data Export/Import methods
+    async exportData() {
+        try {
+            console.log('📤 データエクスポートを開始...');
+            const exportData = await this.model.exportAllData();
+            
+            // Create downloadable file
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            // Generate filename with current date
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+            const filename = `jpwalk-data-${dateStr}.json`;
+            
+            // Create download link
+            const downloadLink = document.createElement('a');
+            downloadLink.href = URL.createObjectURL(dataBlob);
+            downloadLink.download = filename;
+            downloadLink.style.display = 'none';
+            
+            // Trigger download
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            
+            // Clean up
+            URL.revokeObjectURL(downloadLink.href);
+            
+            console.log('✅ データエクスポート完了:', filename);
+            this.view.showExportSuccess(exportData.metadata);
+            
+        } catch (error) {
+            console.error('エクスポートエラー:', error);
+            this.view.showExportError(error.message);
+        }
+    }
+
+    async importData(file, options = { merge: false }) {
+        try {
+            console.log('📥 データインポートを開始...');
+            
+            const fileContent = await this.readFileAsText(file);
+            const importData = JSON.parse(fileContent);
+            
+            const result = await this.model.importAllData(importData, {
+                merge: options.merge,
+                validate: true
+            });
+            
+            console.log('✅ データインポート完了:', result);
+            this.view.showImportSuccess(result);
+            
+            // Refresh the UI to show imported data
+            await this.loadSessions();
+            await this.updateWeeklyStats();
+            
+        } catch (error) {
+            console.error('インポートエラー:', error);
+            this.view.showImportError(error.message);
+        }
+    }
+
+    readFileAsText(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.onerror = (e) => reject(new Error('ファイルの読み込みに失敗しました'));
+            reader.readAsText(file);
+        });
+    }
+
+    showDataManagement() {
+        this.view.showDataManagementModal();
+    }
+
+    hideDataManagement() {
+        this.view.hideDataManagementModal();
     }
 
     // Pagination methods

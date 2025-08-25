@@ -326,6 +326,22 @@ export class WalkingModel {
         }
     }
 
+    // Get total count of all sessions
+    async getAllSessionsCount() {
+        if (this.worker) {
+            try {
+                const result = await this.selectValue('SELECT COUNT(*) FROM walking_sessions');
+                return result || 0;
+            } catch (error) {
+                console.error('セッション数取得エラー:', error);
+                return 0;
+            }
+        } else {
+            const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
+            return sessions.length;
+        }
+    }
+
     async getWeeklyStats() {
         const oneWeekAgo = new Date();
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
@@ -356,6 +372,199 @@ export class WalkingModel {
             let locations = JSON.parse(localStorage.getItem('walkingLocations') || '[]');
             locations = locations.filter(l => l.session_id != sessionId);
             localStorage.setItem('walkingLocations', JSON.stringify(locations));
+        }
+    }
+
+    
+    // Data Export/Import functionality
+    async exportAllData() {
+        try {
+            let sessions = [];
+            let locations = [];
+
+            if (this.worker) {
+                // Get all sessions from SQLite
+                sessions = await this.selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC');
+                
+                // Get all locations from SQLite
+                locations = await this.selectObjects('SELECT * FROM walking_locations ORDER BY session_id, timestamp');
+            } else {
+                // Get data from LocalStorage
+                sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
+                locations = JSON.parse(localStorage.getItem('walkingLocations') || '[]');
+            }
+
+            const exportData = {
+                version: '1.0',
+                exportedAt: new Date().toISOString(),
+                appName: 'Japanese Walking (インターバル速歩)',
+                data: {
+                    sessions: sessions,
+                    locations: locations
+                },
+                metadata: {
+                    totalSessions: sessions.length,
+                    totalLocations: locations.length,
+                    dateRange: {
+                        earliest: sessions.length > 0 ? sessions[sessions.length - 1].created_at : null,
+                        latest: sessions.length > 0 ? sessions[0].created_at : null
+                    }
+                }
+            };
+
+            console.log('📤 データエクスポート完了:', exportData.metadata);
+            return exportData;
+        } catch (error) {
+            console.error('データエクスポートエラー:', error);
+            throw new Error('データのエクスポートに失敗しました: ' + error.message);
+        }
+    }
+
+    async importAllData(importData, options = { merge: false, validate: true }) {
+        try {
+            // Validate import data structure
+            if (options.validate) {
+                this.validateImportData(importData);
+            }
+
+            const { sessions, locations } = importData.data;
+            
+            if (!options.merge) {
+                // Clear existing data before import
+                await this.clearAllData();
+            }
+
+            // Import sessions
+            let importedSessionsCount = 0;
+            for (const session of sessions) {
+                try {
+                    if (this.worker) {
+                        // Check if session already exists (for merge mode)
+                        if (options.merge) {
+                            const existing = await this.selectValue('SELECT COUNT(*) FROM walking_sessions WHERE id = ?', [session.id]);
+                            if (existing > 0) {
+                                console.log(`⏭️ セッション ${session.id} は既に存在するためスキップ`);
+                                continue;
+                            }
+                        }
+
+                        await this.execSQL(
+                            'INSERT INTO walking_sessions (id, duration, distance, created_at) VALUES (?, ?, ?, ?)',
+                            [session.id, session.duration, session.distance || 0, session.created_at]
+                        );
+                    } else {
+                        // LocalStorage import
+                        const existingSessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
+                        if (!options.merge || !existingSessions.find(s => s.id === session.id)) {
+                            existingSessions.push(session);
+                            localStorage.setItem('walkingSessions', JSON.stringify(existingSessions));
+                        }
+                    }
+                    importedSessionsCount++;
+                } catch (sessionError) {
+                    console.warn(`⚠️ セッション ${session.id} のインポートに失敗:`, sessionError);
+                }
+            }
+
+            // Import locations
+            let importedLocationsCount = 0;
+            for (const location of locations) {
+                try {
+                    if (this.worker) {
+                        // Check if location already exists (for merge mode)
+                        if (options.merge) {
+                            const existing = await this.selectValue('SELECT COUNT(*) FROM walking_locations WHERE id = ?', [location.id]);
+                            if (existing > 0) {
+                                continue;
+                            }
+                        }
+
+                        await this.execSQL(
+                            'INSERT INTO walking_locations (id, session_id, latitude, longitude, timestamp, phase, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                            [location.id, location.session_id, location.latitude, location.longitude, location.timestamp, location.phase, location.created_at]
+                        );
+                    } else {
+                        // LocalStorage import
+                        const existingLocations = JSON.parse(localStorage.getItem('walkingLocations') || '[]');
+                        if (!options.merge || !existingLocations.find(l => l.id === location.id)) {
+                            existingLocations.push(location);
+                            localStorage.setItem('walkingLocations', JSON.stringify(existingLocations));
+                        }
+                    }
+                    importedLocationsCount++;
+                } catch (locationError) {
+                    console.warn(`⚠️ 位置情報 ${location.id} のインポートに失敗:`, locationError);
+                }
+            }
+
+            const result = {
+                success: true,
+                imported: {
+                    sessions: importedSessionsCount,
+                    locations: importedLocationsCount
+                },
+                total: {
+                    sessions: sessions.length,
+                    locations: locations.length
+                }
+            };
+
+            console.log('📥 データインポート完了:', result);
+            return result;
+
+        } catch (error) {
+            console.error('データインポートエラー:', error);
+            throw new Error('データのインポートに失敗しました: ' + error.message);
+        }
+    }
+
+    validateImportData(importData) {
+        if (!importData || typeof importData !== 'object') {
+            throw new Error('無効なインポートデータ形式です');
+        }
+
+        if (!importData.data || !importData.data.sessions || !importData.data.locations) {
+            throw new Error('インポートデータに必要なフィールドが不足しています');
+        }
+
+        if (!Array.isArray(importData.data.sessions) || !Array.isArray(importData.data.locations)) {
+            throw new Error('セッションまたは位置情報データが配列ではありません');
+        }
+
+        // Validate session data structure
+        for (const session of importData.data.sessions) {
+            if (!session.id || !session.duration || !session.created_at) {
+                throw new Error('セッションデータに必要なフィールドが不足しています: id, duration, created_at');
+            }
+        }
+
+        // Validate location data structure
+        for (const location of importData.data.locations) {
+            if (!location.session_id || location.latitude === undefined || location.longitude === undefined || !location.timestamp) {
+                throw new Error('位置情報データに必要なフィールドが不足しています: session_id, latitude, longitude, timestamp');
+            }
+        }
+
+        console.log('✅ インポートデータの検証が完了しました');
+        return true;
+    }
+
+    async clearAllData() {
+        try {
+            if (this.worker) {
+                // Clear SQLite data
+                await this.execSQL('DELETE FROM walking_locations');
+                await this.execSQL('DELETE FROM walking_sessions');
+                console.log('🗑️ SQLiteデータをクリアしました');
+            } else {
+                // Clear LocalStorage data
+                localStorage.removeItem('walkingSessions');
+                localStorage.removeItem('walkingLocations');
+                console.log('🗑️ LocalStorageデータをクリアしました');
+            }
+        } catch (error) {
+            console.error('データクリアエラー:', error);
+            throw new Error('データのクリアに失敗しました: ' + error.message);
         }
     }
 }
