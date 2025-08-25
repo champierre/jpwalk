@@ -232,7 +232,7 @@ export class WalkingController {
     startLocationTracking() {
         this.locationTimer = setInterval(() => {
             this.trackLocation();
-        }, 30000);
+        }, 60000);  // 1分ごとに位置情報を取得
     }
 
     stopLocationTracking() {
