@@ -183,14 +183,40 @@ export class WalkingView {
             attribution: '© OpenStreetMap contributors'
         }).addTo(this.map);
 
-        const routeCoords = locations.map(loc => [loc.latitude, loc.longitude]);
-        
-        this.routeLine = L.polyline(routeCoords, { 
-            color: '#3b82f6',
-            weight: 4,
-            opacity: 0.8
-        }).addTo(this.map);
+        // Group consecutive locations by phase and draw colored segments
+        this.routeLines = [];
+        let allBounds = L.latLngBounds();
 
+        if (locations.length > 1) {
+            for (let i = 0; i < locations.length - 1; i++) {
+                const currentLocation = locations[i];
+                const nextLocation = locations[i + 1];
+                
+                // Create a segment between current and next location
+                const segmentCoords = [
+                    [currentLocation.latitude, currentLocation.longitude],
+                    [nextLocation.latitude, nextLocation.longitude]
+                ];
+                
+                // Use the phase of the current location to determine color
+                const phase = currentLocation.phase || 'slow'; // default to slow if phase is missing
+                const color = phase === 'fast' ? '#f97316' : '#3b82f6'; // orange for fast, blue for slow
+                
+                const segmentLine = L.polyline(segmentCoords, { 
+                    color: color,
+                    weight: 4,
+                    opacity: 0.8
+                }).addTo(this.map);
+                
+                this.routeLines.push(segmentLine);
+                allBounds.extend(segmentLine.getBounds());
+            }
+        } else if (locations.length === 1) {
+            // Handle single location case
+            allBounds.extend([locations[0].latitude, locations[0].longitude]);
+        }
+
+        // Add start and end markers
         if (locations.length > 0) {
             const startIcon = L.divIcon({
                 html: '<div style="background-color: #22c55e; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
@@ -215,7 +241,10 @@ export class WalkingView {
             }
         }
 
-        this.map.fitBounds(this.routeLine.getBounds(), { padding: [20, 20] });
+        // Fit map to show all segments
+        if (allBounds.isValid()) {
+            this.map.fitBounds(allBounds, { padding: [20, 20] });
+        }
     }
 
     displayLocations(locations) {
