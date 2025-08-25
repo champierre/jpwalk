@@ -383,8 +383,8 @@ export class WalkingModel {
             let locations = [];
 
             if (this.worker) {
-                // Get all sessions from SQLite
-                sessions = await this.selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC');
+                // Get all sessions from SQLite (exclude the unused locations column)
+                sessions = await this.selectObjects('SELECT id, duration, distance, created_at FROM walking_sessions ORDER BY created_at DESC');
                 
                 // Get all locations from SQLite
                 locations = await this.selectObjects('SELECT * FROM walking_locations ORDER BY session_id, timestamp');
@@ -448,15 +448,22 @@ export class WalkingModel {
                             }
                         }
 
+                        // Only import the essential fields, excluding the unused locations column
                         await this.execSQL(
                             'INSERT INTO walking_sessions (id, duration, distance, created_at) VALUES (?, ?, ?, ?)',
                             [session.id, session.duration, session.distance || 0, session.created_at]
                         );
                     } else {
-                        // LocalStorage import
+                        // LocalStorage import - clean session object by removing locations field
+                        const cleanSession = {
+                            id: session.id,
+                            duration: session.duration,
+                            distance: session.distance || 0,
+                            created_at: session.created_at
+                        };
                         const existingSessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
                         if (!options.merge || !existingSessions.find(s => s.id === session.id)) {
-                            existingSessions.push(session);
+                            existingSessions.push(cleanSession);
                             localStorage.setItem('walkingSessions', JSON.stringify(existingSessions));
                         }
                     }
