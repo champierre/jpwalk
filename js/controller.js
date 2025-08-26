@@ -316,9 +316,17 @@ export class WalkingController {
                 return;
             }
 
-            sessions.forEach(session => {
+            // Recalculate distance for each session from location data
+            for (const session of sessions) {
+                const locations = await this.model.getLocationsBySessionId(session.id);
+                if (locations && locations.length > 0) {
+                    const calculatedDistance = this.calculateTotalDistance(locations);
+                    session.calculatedDistance = calculatedDistance;
+                    // Update the session.distance field to ensure consistency
+                    session.distance = calculatedDistance;
+                }
                 sessionList.appendChild(this.view.addSessionToDOM(session));
-            });
+            }
 
             // Show "more" button only if there are more than 3 sessions total
             if (allSessionsCount > 3) {
@@ -342,9 +350,17 @@ export class WalkingController {
                 return;
             }
 
-            sessions.forEach(session => {
+            // Recalculate distance for each session from location data
+            for (const session of sessions) {
+                const locations = await this.model.getLocationsBySessionId(session.id);
+                if (locations && locations.length > 0) {
+                    const calculatedDistance = this.calculateTotalDistance(locations);
+                    session.calculatedDistance = calculatedDistance;
+                    // Update the session.distance field to ensure consistency
+                    session.distance = calculatedDistance;
+                }
                 allSessionsList.appendChild(this.view.addSessionToAllSessionsDOM(session));
-            });
+            }
 
             const totalPages = Math.ceil(totalCount / 10);
             this.view.updatePaginationControls(page, totalPages, totalCount);
