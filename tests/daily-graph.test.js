@@ -64,7 +64,8 @@ class TestWalkingView {
             
             // Set bar height and color based on achievement
             const heightPercent = dayStat.achievementPercent;
-            bar.style = { height: `${Math.max(2, (heightPercent / 100) * 60)}px` };
+            const cappedPercent = Math.min(heightPercent, 100); // Cap at 100% for height calculation
+            bar.style = { height: `${Math.max(2, (cappedPercent / 100) * 60)}px` };
             
             // Color coding based on achievement level
             if (heightPercent === 0) {
