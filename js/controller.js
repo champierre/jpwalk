@@ -424,6 +424,10 @@ export class WalkingController {
         try {
             const stats = await this.model.getWeeklyStats();
             this.view.updateWeeklyStats(stats);
+            
+            // Also update daily stats graph
+            const dailyStats = await this.model.getDailyStats();
+            this.view.updateDailyGraph(dailyStats);
         } catch (error) {
             console.error('週間統計読み込みエラー:', error);
         }
