@@ -313,6 +313,111 @@ export class WalkingView {
         document.getElementById('weeklyDuration').textContent = Math.floor(stats.duration / 60);
     }
 
+    updateDailyGraph(dailyStats) {
+        const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+        const graphContainer = document.getElementById('dailyGraph');
+        
+        if (!graphContainer) {
+            console.error('dailyGraph container not found');
+            return;
+        }
+        
+        // Clear existing content
+        graphContainer.innerHTML = '';
+        
+        // Create graph title
+        const title = document.createElement('h3');
+        title.className = 'text-sm font-medium text-gray-700 mb-3 text-center';
+        title.textContent = '今週の達成度（日曜日〜土曜日）';
+        graphContainer.appendChild(title);
+        
+        // Create graph container
+        const barsContainer = document.createElement('div');
+        barsContainer.className = 'flex items-end justify-between gap-1 h-24 mb-2';
+        
+        dailyStats.forEach((dayStat, index) => {
+            const dayContainer = document.createElement('div');
+            dayContainer.className = 'flex flex-col items-center flex-1';
+            
+            // Bar container with background
+            const barBg = document.createElement('div');
+            barBg.className = 'w-full bg-gray-100 rounded-t-sm flex flex-col justify-end';
+            barBg.style.height = '60px';
+            
+            // Achievement bar
+            const bar = document.createElement('div');
+            bar.className = 'w-full rounded-t-sm transition-all duration-300';
+            
+            // Set bar height and color based on achievement
+            const heightPercent = dayStat.achievementPercent;
+            const cappedPercent = Math.min(heightPercent, 100); // Cap at 100% for height calculation
+            bar.style.height = `${Math.max(2, (cappedPercent / 100) * 60)}px`;
+            
+            // Color coding based on achievement level
+            if (heightPercent === 0) {
+                bar.className += ' bg-gray-200';
+            } else if (heightPercent < 50) {
+                bar.className += ' bg-red-400';
+            } else if (heightPercent < 100) {
+                bar.className += ' bg-yellow-400';
+            } else {
+                bar.className += ' bg-green-500';
+            }
+            
+            // Add hover effect and tooltip
+            dayContainer.title = `${dayNames[index]}曜日: ${dayStat.sessionCount}セッション, ${Math.floor(dayStat.totalDuration / 60)}分 (${heightPercent}%)`;
+            dayContainer.className += ' cursor-pointer hover:opacity-80';
+            
+            barBg.appendChild(bar);
+            dayContainer.appendChild(barBg);
+            
+            // Day label
+            const dayLabel = document.createElement('div');
+            dayLabel.className = 'text-xs text-gray-600 font-medium mt-1';
+            dayLabel.textContent = dayNames[index];
+            
+            // Highlight today
+            const today = new Date();
+            if (dayStat.date.toDateString() === today.toDateString()) {
+                dayLabel.className = 'text-xs text-blue-600 font-bold mt-1';
+            }
+            
+            dayContainer.appendChild(dayLabel);
+            barsContainer.appendChild(dayContainer);
+        });
+        
+        graphContainer.appendChild(barsContainer);
+        
+        // Add legend
+        const legend = document.createElement('div');
+        legend.className = 'flex justify-center gap-3 text-xs text-gray-600';
+        legend.innerHTML = `
+            <div class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-gray-200 rounded"></div>
+                <span>0%</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-red-400 rounded"></div>
+                <span>0-49%</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-yellow-400 rounded"></div>
+                <span>50-99%</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <div class="w-3 h-3 bg-green-500 rounded"></div>
+                <span>100%+</span>
+            </div>
+        `;
+        graphContainer.appendChild(legend);
+        
+        // Add target info
+        const targetInfo = document.createElement('div');
+        targetInfo.className = 'text-center text-xs text-gray-500 mt-2';
+        targetInfo.textContent = '目標: 1日30分';
+        graphContainer.appendChild(targetInfo);
+    }
+
     clearSessionLists() {
         document.getElementById('sessionList').innerHTML = '';
         document.getElementById('allSessionsList').innerHTML = '';

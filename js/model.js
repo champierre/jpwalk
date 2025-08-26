@@ -399,6 +399,67 @@ export class WalkingModel {
         }
     }
 
+    async getDailyStats() {
+        // Get current week Sunday to Saturday
+        const today = new Date();
+        const currentDayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+        
+        // Calculate this week's Sunday
+        const thisWeekSunday = new Date(today);
+        thisWeekSunday.setDate(today.getDate() - currentDayOfWeek);
+        thisWeekSunday.setHours(0, 0, 0, 0);
+        
+        // Array to store daily stats (Sun, Mon, Tue, Wed, Thu, Fri, Sat)
+        const dailyStats = [];
+        
+        for (let i = 0; i < 7; i++) {
+            const dayStart = new Date(thisWeekSunday);
+            dayStart.setDate(thisWeekSunday.getDate() + i);
+            
+            const dayEnd = new Date(dayStart);
+            dayEnd.setHours(23, 59, 59, 999);
+            
+            let sessionCount = 0;
+            let totalDuration = 0;
+            
+            if (this.worker) {
+                const count = await this.selectValue(
+                    'SELECT COUNT(*) FROM walking_sessions WHERE created_at >= ? AND created_at <= ?', 
+                    [dayStart.toISOString(), dayEnd.toISOString()]
+                );
+                const duration = await this.selectValue(
+                    'SELECT SUM(duration) FROM walking_sessions WHERE created_at >= ? AND created_at <= ?', 
+                    [dayStart.toISOString(), dayEnd.toISOString()]
+                );
+                sessionCount = count || 0;
+                totalDuration = duration || 0;
+            } else {
+                const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
+                const daySessions = sessions.filter(s => {
+                    const sessionDate = new Date(s.created_at);
+                    return sessionDate >= dayStart && sessionDate <= dayEnd;
+                });
+                sessionCount = daySessions.length;
+                totalDuration = daySessions.reduce((sum, s) => sum + s.duration, 0);
+            }
+            
+            // Calculate achievement level (0-100)
+            // Target: 30 minutes (1800 seconds) per day
+            const targetDuration = 1800; // 30 minutes in seconds
+            const achievementPercent = Math.min(100, Math.round((totalDuration / targetDuration) * 100));
+            
+            dailyStats.push({
+                day: i, // 0 = Sunday, 1 = Monday, etc.
+                date: dayStart,
+                sessionCount,
+                totalDuration, // in seconds
+                achievementPercent
+            });
+        }
+        
+        return dailyStats;
+    }
+
     async deleteSessionById(sessionId) {
         if (this.worker) {
             await this.execSQL('DELETE FROM walking_locations WHERE session_id = ?', [sessionId]);
