@@ -460,6 +460,24 @@ export class WalkingModel {
         return dailyStats;
     }
 
+    async getWeeklyAchievement() {
+        // Get daily stats for the current week
+        const dailyStats = await this.getDailyStats();
+        
+        // Count how many days have 100% completion
+        const completedDays = dailyStats.filter(day => day.achievementPercent >= 100).length;
+        
+        // Weekly achievement is met if 4 or more days have 100% completion
+        const weeklyAchievement = {
+            completedDays,
+            targetDays: 4,
+            achieved: completedDays >= 4,
+            achievementPercent: Math.min(100, Math.round((completedDays / 4) * 100))
+        };
+        
+        return weeklyAchievement;
+    }
+
     async deleteSessionById(sessionId) {
         if (this.worker) {
             await this.execSQL('DELETE FROM walking_locations WHERE session_id = ?', [sessionId]);

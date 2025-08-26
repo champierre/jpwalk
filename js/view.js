@@ -418,6 +418,99 @@ export class WalkingView {
         graphContainer.appendChild(targetInfo);
     }
 
+    updateWeeklyAchievement(weeklyAchievement) {
+        // Find the weekly progress container to add the achievement display
+        const weeklyProgressContainer = document.getElementById('weeklyProgress');
+        if (!weeklyProgressContainer) {
+            console.error('Weekly progress container not found');
+            return;
+        }
+        
+        // Remove existing weekly achievement display if it exists
+        const existingAchievement = document.getElementById('weeklyAchievement');
+        if (existingAchievement) {
+            existingAchievement.remove();
+        }
+        
+        // Create weekly achievement display
+        const achievementContainer = document.createElement('div');
+        achievementContainer.id = 'weeklyAchievement';
+        achievementContainer.className = 'border-t border-gray-100 pt-4 mt-4';
+        
+        // Achievement title
+        const title = document.createElement('h3');
+        title.className = 'text-sm font-medium text-gray-700 mb-3 text-center';
+        title.textContent = '週の達成度';
+        
+        // Achievement status card
+        const statusCard = document.createElement('div');
+        statusCard.className = `p-4 rounded-lg border-2 ${
+            weeklyAchievement.achieved 
+                ? 'bg-green-50 border-green-200 text-green-800' 
+                : 'bg-gray-50 border-gray-200 text-gray-600'
+        }`;
+        
+        // Achievement icon and text
+        const achievementContent = document.createElement('div');
+        achievementContent.className = 'flex items-center justify-center gap-3';
+        
+        const icon = document.createElement('div');
+        icon.innerHTML = weeklyAchievement.achieved 
+            ? '🏆' 
+            : '⭐';
+        
+        const statusText = document.createElement('div');
+        statusText.className = 'text-center';
+        
+        const mainText = document.createElement('div');
+        mainText.className = 'font-semibold';
+        mainText.textContent = weeklyAchievement.achieved 
+            ? '週の目標達成！' 
+            : '週の目標まであと少し';
+        
+        const detailText = document.createElement('div');
+        detailText.className = 'text-sm mt-1';
+        detailText.textContent = `${weeklyAchievement.completedDays}日/4日完了 (${weeklyAchievement.achievementPercent}%)`;
+        
+        statusText.appendChild(mainText);
+        statusText.appendChild(detailText);
+        
+        achievementContent.appendChild(icon);
+        achievementContent.appendChild(statusText);
+        statusCard.appendChild(achievementContent);
+        
+        // Achievement progress bar
+        if (weeklyAchievement.completedDays > 0) {
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'mt-3';
+            
+            const progressBar = document.createElement('div');
+            progressBar.className = 'w-full bg-gray-200 rounded-full h-2';
+            
+            const progressFill = document.createElement('div');
+            progressFill.className = `h-2 rounded-full transition-all duration-300 ${
+                weeklyAchievement.achieved ? 'bg-green-500' : 'bg-blue-500'
+            }`;
+            progressFill.style.width = `${weeklyAchievement.achievementPercent}%`;
+            
+            progressBar.appendChild(progressFill);
+            progressContainer.appendChild(progressBar);
+            statusCard.appendChild(progressContainer);
+        }
+        
+        achievementContainer.appendChild(title);
+        achievementContainer.appendChild(statusCard);
+        
+        // Add achievement info
+        const infoText = document.createElement('div');
+        infoText.className = 'text-center text-xs text-gray-500 mt-2';
+        infoText.textContent = '週に4日以上、1日30分の目標を達成すると週の達成度100%';
+        achievementContainer.appendChild(infoText);
+        
+        // Append to weekly progress container
+        weeklyProgressContainer.appendChild(achievementContainer);
+    }
+
     clearSessionLists() {
         document.getElementById('sessionList').innerHTML = '';
         document.getElementById('allSessionsList').innerHTML = '';

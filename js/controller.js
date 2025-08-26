@@ -428,6 +428,10 @@ export class WalkingController {
             // Also update daily stats graph
             const dailyStats = await this.model.getDailyStats();
             this.view.updateDailyGraph(dailyStats);
+            
+            // Update weekly achievement display
+            const weeklyAchievement = await this.model.getWeeklyAchievement();
+            this.view.updateWeeklyAchievement(weeklyAchievement);
         } catch (error) {
             console.error('週間統計読み込みエラー:', error);
         }
