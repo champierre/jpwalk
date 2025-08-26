@@ -237,6 +237,45 @@ export class WalkingModel {
         }
     }
 
+    // セッション終了時に距離と時間を更新
+    async updateSessionWithDistance(sessionId, duration, distance) {
+        console.log('🔄 セッション更新（距離込み） - ID:', sessionId, 'Duration:', duration, 'Distance:', distance);
+        
+        if (this.worker) {
+            try {
+                await this.execSQL(
+                    'UPDATE walking_sessions SET duration = ?, distance = ? WHERE id = ?',
+                    [Math.floor(duration / 1000), distance, sessionId]
+                );
+                console.log('✅ セッション更新完了（距離込み）:', sessionId);
+                return sessionId;
+            } catch (error) {
+                console.error('SQLiteセッション更新エラー:', error);
+                // LocalStorageではフォールバック処理
+                return await this.updateSessionWithDistanceLocalStorage(sessionId, duration, distance);
+            }
+        } else {
+            return await this.updateSessionWithDistanceLocalStorage(sessionId, duration, distance);
+        }
+    }
+
+    async updateSessionWithDistanceLocalStorage(sessionId, duration, distance) {
+        const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
+        const sessionIndex = sessions.findIndex(s => s.id == sessionId);
+        
+        if (sessionIndex !== -1) {
+            sessions[sessionIndex].duration = Math.floor(duration / 1000);
+            sessions[sessionIndex].distance = distance;
+            localStorage.setItem('walkingSessions', JSON.stringify(sessions));
+            console.log('✅ LocalStorageセッション更新完了（距離込み）:', sessionId);
+            return sessionId;
+        } else {
+            console.warn('⚠️ LocalStorageでセッションが見つかりません:', sessionId);
+            // フォールバックとして新しいセッションを作成
+            return await this.saveSession(duration);
+        }
+    }
+
     async saveLocation(sessionId, location) {
         console.log('💾 Saving location for session ID:', sessionId);
         console.log('📍 Location data:', location);
