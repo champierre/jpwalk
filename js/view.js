@@ -159,7 +159,15 @@ export class WalkingView {
         });
         
         document.getElementById('duration').textContent = `${Math.floor(session.duration / 60)}分`;
-        document.getElementById('distance').textContent = session.distance ? `${session.distance.toFixed(2)}km` : '距離なし';
+        
+        // 再計算された距離を優先的に使用、次にセッションに保存された距離、最後に「距離なし」
+        let displayDistance = '距離なし';
+        if (session.calculatedDistance !== undefined && session.calculatedDistance > 0) {
+            displayDistance = `${session.calculatedDistance.toFixed(2)}km`;
+        } else if (session.distance && session.distance > 0) {
+            displayDistance = `${session.distance.toFixed(2)}km`;
+        }
+        document.getElementById('distance').textContent = displayDistance;
 
         this.displayRouteMap(locations);
         this.displayLocations(locations);

@@ -189,11 +189,16 @@ export class WalkingController {
         const duration = Date.now() - this.startTime;
         console.log('🛑 セッション停止 - 既存セッションを更新:', this.model.currentSessionId);
         
-        // 既存のセッションを更新（新しいセッションを作成しない）
-        await this.model.updateSession(this.model.currentSessionId, duration);
-        
         // 最後の位置データを同じセッションIDで保存
         await this.trackLocation();
+        
+        // 位置情報から距離を計算
+        const locations = await this.model.getLocationsBySessionId(this.model.currentSessionId);
+        const totalDistance = this.calculateTotalDistance(locations);
+        console.log('📏 計算された距離:', totalDistance, 'km');
+        
+        // 既存のセッションを距離と時間で更新
+        await this.model.updateSessionWithDistance(this.model.currentSessionId, duration, totalDistance);
         
         this.model.currentSession = null;
         this.model.currentSessionId = null;
@@ -362,6 +367,13 @@ export class WalkingController {
             console.log('📊 Retrieved locations:', locations);
             console.log('📊 Number of locations:', locations ? locations.length : 0);
             
+            // 位置情報から距離を再計算（既存のセッションでも正確な距離を表示）
+            if (locations && locations.length > 0) {
+                const calculatedDistance = this.calculateTotalDistance(locations);
+                session.calculatedDistance = calculatedDistance;
+                console.log('📏 再計算された距離:', calculatedDistance, 'km');
+            }
+            
             this.view.displaySessionDetails(session, locations);
         } catch (error) {
             console.error('セッション詳細読み込みエラー:', error);
@@ -381,6 +393,13 @@ export class WalkingController {
         const locations = JSON.parse(localStorage.getItem('walkingLocations') || '[]')
             .filter(l => l.session_id == sessionId)
             .sort((a, b) => a.timestamp - b.timestamp);
+        
+        // 位置情報から距離を再計算（LocalStorageの既存セッションでも正確な距離を表示）
+        if (locations && locations.length > 0) {
+            const calculatedDistance = this.calculateTotalDistance(locations);
+            session.calculatedDistance = calculatedDistance;
+            console.log('📏 LocalStorage - 再計算された距離:', calculatedDistance, 'km');
+        }
             
         this.view.displaySessionDetails(session, locations);
     }
