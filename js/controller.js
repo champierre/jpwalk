@@ -200,10 +200,12 @@ export class WalkingController {
         // 既存のセッションを距離と時間で更新
         await this.model.updateSessionWithDistance(this.model.currentSessionId, duration, totalDistance);
         
+        // セッション完了後、そのセッションの詳細ページに遷移
+        const completedSessionId = this.model.currentSessionId;
         this.model.currentSession = null;
         this.model.currentSessionId = null;
         this.view.hideSessionUI();
-        this.showMain();
+        this.router.navigate(`session/${completedSessionId}`);
     }
 
     startTimer() {
