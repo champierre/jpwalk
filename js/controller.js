@@ -30,18 +30,41 @@ export class WalkingController {
             
             handleRoute: () => {
                 const hash = window.location.hash;
+                const url = new URL(window.location);
+                const deleted = url.searchParams.get('deleted');
+                
                 if (hash.startsWith('#session/')) {
                     const sessionId = hash.split('/')[1];
                     this.showSession(sessionId);
                 } else if (hash === '#sessions') {
                     this.showSessions();
                 } else {
-                    this.showMain();
+                    // Check for deletion flash message
+                    if (deleted === 'session') {
+                        this.showMain('セッションが正常に削除されました', 'success');
+                        // Clear the parameter from URL to prevent repeated messages
+                        const newUrl = new URL(window.location);
+                        newUrl.searchParams.delete('deleted');
+                        window.history.replaceState({}, '', newUrl.toString());
+                    } else {
+                        this.showMain();
+                    }
                 }
             },
             
             navigate: (path) => {
-                window.location.hash = path;
+                if (path.startsWith('?')) {
+                    // Handle query parameters by updating the current URL
+                    const currentUrl = new URL(window.location);
+                    const params = new URLSearchParams(path.substring(1));
+                    params.forEach((value, key) => {
+                        currentUrl.searchParams.set(key, value);
+                    });
+                    window.history.pushState({}, '', currentUrl.toString());
+                    this.router.handleRoute();
+                } else {
+                    window.location.hash = path;
+                }
             }
         };
     }
@@ -90,11 +113,16 @@ export class WalkingController {
     }
 
     // Navigation methods
-    showMain() {
+    showMain(flashMessage = null, flashType = 'success') {
         this.view.showMainView();
         this.router.currentView = 'main';
         this.loadSessions();
         this.updateWeeklyStats();
+        
+        // Show flash message if provided
+        if (flashMessage) {
+            this.view.showFlashMessage(flashMessage, flashType);
+        }
     }
 
     showSessions() {
@@ -535,9 +563,12 @@ export class WalkingController {
         try {
             await this.model.deleteSessionById(this.model.currentSessionId);
             this.view.hideDeleteConfirmation();
-            this.router.navigate('');
+            
+            // Navigate to main with flash message
+            this.router.navigate('?deleted=session');
         } catch (error) {
             console.error('セッション削除エラー:', error);
+            this.view.showFlashMessage('セッションの削除に失敗しました', 'error');
         }
     }
 
