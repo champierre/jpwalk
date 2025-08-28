@@ -38,10 +38,15 @@ describe('Flash Message Feature', () => {
     function showFlashMessage(message, type = 'success') {
         const flashContainer = document.getElementById('flashMessage');
         const flashText = document.getElementById('flashMessageText');
-        const flashDiv = flashContainer.querySelector('div');
         const flashIcon = document.getElementById('flashMessageIcon');
         
-        if (!flashContainer || !flashText || !flashDiv) {
+        if (!flashContainer || !flashText) {
+            console.error('Flash message elements not found');
+            return;
+        }
+        
+        const flashDiv = flashContainer.querySelector('div');
+        if (!flashDiv) {
             console.error('Flash message elements not found');
             return;
         }
