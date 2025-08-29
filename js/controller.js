@@ -487,50 +487,97 @@ export class WalkingController {
             const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
             
             if (isIOS || isSafari) {
+                // Close data management modal first
+                this.hideDataManagement();
+                
                 // iOS Safari specific handling
                 // Convert blob to data URL for better iOS compatibility
                 const reader = new FileReader();
                 reader.onload = () => {
                     const dataUrl = reader.result;
+                    
+                    // Create container for download UI
+                    const container = document.createElement('div');
+                    container.style.position = 'fixed';
+                    container.style.top = '50%';
+                    container.style.left = '50%';
+                    container.style.transform = 'translate(-50%, -50%)';
+                    container.style.backgroundColor = 'white';
+                    container.style.padding = '24px';
+                    container.style.borderRadius = '12px';
+                    container.style.boxShadow = '0 10px 25px rgba(0,0,0,0.2)';
+                    container.style.zIndex = '10000';
+                    container.style.textAlign = 'center';
+                    container.style.width = '90%';
+                    container.style.maxWidth = '400px';
+                    
+                    // Add instructions
+                    const instruction = document.createElement('div');
+                    instruction.style.marginBottom = '16px';
+                    instruction.style.color = '#374151';
+                    instruction.style.fontSize = '14px';
+                    instruction.style.lineHeight = '1.5';
+                    instruction.innerHTML = `
+                        <strong style="display: block; margin-bottom: 8px; font-size: 16px;">データをエクスポート</strong>
+                        <span>${filename}</span><br>
+                        <span style="color: #6B7280; font-size: 12px; margin-top: 4px; display: block;">
+                            タップしてファイルアプリに保存
+                        </span>
+                    `;
+                    
+                    // Create download link button
                     const downloadLink = document.createElement('a');
                     downloadLink.href = dataUrl;
                     downloadLink.download = filename;
                     downloadLink.setAttribute('target', '_blank');
-                    
-                    // Add visual indication for iOS
-                    downloadLink.textContent = 'Download ' + filename;
-                    downloadLink.style.position = 'fixed';
-                    downloadLink.style.top = '50%';
-                    downloadLink.style.left = '50%';
-                    downloadLink.style.transform = 'translate(-50%, -50%)';
-                    downloadLink.style.padding = '12px 24px';
+                    downloadLink.textContent = 'ダウンロード';
+                    downloadLink.style.display = 'inline-block';
+                    downloadLink.style.padding = '12px 32px';
                     downloadLink.style.backgroundColor = '#3B82F6';
                     downloadLink.style.color = 'white';
                     downloadLink.style.borderRadius = '8px';
                     downloadLink.style.textDecoration = 'none';
-                    downloadLink.style.zIndex = '10000';
                     downloadLink.style.fontSize = '16px';
                     downloadLink.style.fontWeight = 'bold';
-                    downloadLink.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                    downloadLink.style.marginBottom = '12px';
                     
-                    document.body.appendChild(downloadLink);
+                    // Create close button
+                    const closeBtn = document.createElement('button');
+                    closeBtn.textContent = '×';
+                    closeBtn.style.position = 'absolute';
+                    closeBtn.style.top = '8px';
+                    closeBtn.style.right = '8px';
+                    closeBtn.style.backgroundColor = 'transparent';
+                    closeBtn.style.border = 'none';
+                    closeBtn.style.fontSize = '24px';
+                    closeBtn.style.color = '#6B7280';
+                    closeBtn.style.cursor = 'pointer';
+                    closeBtn.style.width = '32px';
+                    closeBtn.style.height = '32px';
+                    closeBtn.style.display = 'flex';
+                    closeBtn.style.alignItems = 'center';
+                    closeBtn.style.justifyContent = 'center';
+                    closeBtn.style.borderRadius = '4px';
                     
-                    // For iOS, we need user interaction to trigger download
+                    // Assemble container
+                    container.appendChild(closeBtn);
+                    container.appendChild(instruction);
+                    container.appendChild(downloadLink);
+                    document.body.appendChild(container);
+                    
+                    // Event handlers
+                    const removeContainer = () => {
+                        if (document.body.contains(container)) {
+                            document.body.removeChild(container);
+                        }
+                    };
+                    
                     downloadLink.addEventListener('click', () => {
-                        setTimeout(() => {
-                            document.body.removeChild(downloadLink);
-                        }, 1000);
+                        // Give time for download to start, then remove
+                        setTimeout(removeContainer, 500);
                     });
                     
-                    // Auto-remove after 10 seconds if not clicked
-                    setTimeout(() => {
-                        if (document.body.contains(downloadLink)) {
-                            document.body.removeChild(downloadLink);
-                        }
-                    }, 10000);
-                    
-                    // Show instruction for iOS users
-                    alert(`ファイル「${filename}」をダウンロードするには、表示されたボタンをタップしてください。\n\nダウンロード後、「ファイル」アプリの「ダウンロード」フォルダで確認できます。`);
+                    closeBtn.addEventListener('click', removeContainer);
                 };
                 reader.readAsDataURL(dataBlob);
                 
@@ -551,7 +598,6 @@ export class WalkingController {
             }
             
             console.log('✅ データエクスポート完了:', filename);
-            this.view.showExportSuccess(exportData.metadata);
             
         } catch (error) {
             console.error('エクスポートエラー:', error);
