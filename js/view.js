@@ -87,7 +87,7 @@ export class WalkingView {
     // Session list display methods
     addSessionToDOM(session) {
         const sessionElement = document.createElement('div');
-        sessionElement.className = 'flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0 cursor-pointer hover:bg-gray-50 rounded-lg px-3';
+        sessionElement.className = 'group flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all duration-200 rounded-lg px-3 -mx-3 hover:shadow-sm active:bg-blue-100';
         sessionElement.onclick = () => window.location.hash = `#session/${session.id}`;
 
         const startTime = new Date(session.created_at);
@@ -99,12 +99,15 @@ export class WalkingView {
         });
 
         sessionElement.innerHTML = `
-            <div>
-                <div class="font-medium text-gray-800">${Math.floor(session.duration / 60)}分</div>
+            <div class="flex-1">
+                <div class="font-medium text-gray-800 group-hover:text-blue-600 transition-colors">${Math.floor(session.duration / 60)}分</div>
                 <div class="text-sm text-gray-600">${formattedDate}</div>
             </div>
-            <div class="text-right">
+            <div class="flex items-center gap-3">
                 <div class="text-sm text-gray-600">${session.distance ? session.distance.toFixed(2) + 'km' : '距離なし'}</div>
+                <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
             </div>
         `;
 
@@ -113,7 +116,7 @@ export class WalkingView {
 
     addSessionToAllSessionsDOM(session) {
         const sessionElement = document.createElement('div');
-        sessionElement.className = 'flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0 cursor-pointer hover:bg-gray-50 rounded-lg px-3';
+        sessionElement.className = 'group flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-all duration-200 rounded-lg px-3 -mx-3 hover:shadow-sm active:bg-blue-100';
         sessionElement.onclick = () => window.location.hash = `#session/${session.id}`;
 
         const startTime = new Date(session.created_at);
@@ -126,12 +129,15 @@ export class WalkingView {
         });
 
         sessionElement.innerHTML = `
-            <div>
-                <div class="font-medium text-gray-800">${Math.floor(session.duration / 60)}分</div>
+            <div class="flex-1">
+                <div class="font-medium text-gray-800 group-hover:text-blue-600 transition-colors">${Math.floor(session.duration / 60)}分</div>
                 <div class="text-sm text-gray-600">${formattedDate}</div>
             </div>
-            <div class="text-right">
+            <div class="flex items-center gap-3">
                 <div class="text-sm text-gray-600">${session.distance ? session.distance.toFixed(2) + 'km' : '距離なし'}</div>
+                <svg class="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
             </div>
         `;
 
