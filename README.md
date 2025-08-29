@@ -189,8 +189,3 @@ MIT License
 ## 🔗 関連リンク
 
 - [インターバル速歩 - 信州大学](https://www.shinshu-u.ac.jp/zukan/cooperation/i-walk.html)
-- [sql.js公式ドキュメント](https://sql.js.org/)
-- [Leaflet.js公式ドキュメント](https://leafletjs.com/)
-- [Tailwind CSS公式ドキュメント](https://tailwindcss.com/)
-- [IndexedDB MDN ドキュメント](https://developer.mozilla.org/ja/docs/Web/API/IndexedDB_API)
-- [Geolocation API MDN ドキュメント](https://developer.mozilla.org/ja/docs/Web/API/Geolocation_API)
