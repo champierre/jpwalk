@@ -269,8 +269,8 @@ export class WalkingView {
             return;
         }
 
-        // Calculate segments from location points
-        const segments = [];
+        // Calculate raw segments from location points
+        const rawSegments = [];
         for (let i = 1; i < locations.length; i++) {
             const startLoc = locations[i - 1];
             const endLoc = locations[i];
@@ -287,7 +287,7 @@ export class WalkingView {
             // Calculate speed in km/h (distance in km, time in seconds)
             const speed = timeDiff > 0 ? (distance / timeDiff) * 3600 : 0;
             
-            segments.push({
+            rawSegments.push({
                 startTime: new Date(startLoc.timestamp),
                 endTime: new Date(endLoc.timestamp),
                 phase: startLoc.phase, // Use the phase at the start of segment
@@ -296,6 +296,59 @@ export class WalkingView {
                 duration: timeDiff
             });
         }
+
+        // Merge consecutive segments with the same phase
+        const segments = [];
+        let currentSegment = null;
+        
+        for (const segment of rawSegments) {
+            if (!currentSegment || currentSegment.phase !== segment.phase) {
+                // Start a new merged segment
+                if (currentSegment) {
+                    segments.push(currentSegment);
+                }
+                currentSegment = {
+                    startTime: segment.startTime,
+                    endTime: segment.endTime,
+                    phase: segment.phase,
+                    distance: segment.distance,
+                    totalDuration: segment.duration,
+                    speeds: [segment.speed],
+                    durations: [segment.duration]
+                };
+            } else {
+                // Merge with current segment
+                currentSegment.endTime = segment.endTime;
+                currentSegment.distance += segment.distance;
+                currentSegment.totalDuration += segment.duration;
+                currentSegment.speeds.push(segment.speed);
+                currentSegment.durations.push(segment.duration);
+            }
+        }
+        
+        // Don't forget the last segment
+        if (currentSegment) {
+            segments.push(currentSegment);
+        }
+        
+        // Calculate weighted average speed for merged segments
+        const finalSegments = segments.map(segment => {
+            // Calculate weighted average speed (weighted by duration)
+            let weightedSpeedSum = 0;
+            for (let i = 0; i < segment.speeds.length; i++) {
+                weightedSpeedSum += segment.speeds[i] * segment.durations[i];
+            }
+            const avgSpeed = segment.totalDuration > 0 ? weightedSpeedSum / segment.totalDuration : 0;
+            
+            return {
+                startTime: segment.startTime,
+                endTime: segment.endTime,
+                phase: segment.phase,
+                distance: segment.distance,
+                speed: avgSpeed,
+                duration: segment.totalDuration
+            };
+        });
 
         const table = document.createElement('table');
         table.className = 'w-full text-sm';
@@ -310,7 +363,7 @@ export class WalkingView {
         `;
         table.appendChild(headerRow);
 
-        segments.forEach((segment) => {
+        finalSegments.forEach((segment) => {
             const row = document.createElement('tr');
             row.className = 'border-b border-gray-100';
             
