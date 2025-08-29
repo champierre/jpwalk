@@ -1,0 +1,28 @@
+{
+  "name": "Japanese Walking - インターバル速歩",
+  "short_name": "Japanese Walking",
+  "description": "インターバル速歩で健康習慣を身につけよう",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#4CAF50",
+  "orientation": "portrait-primary",
+  "scope": "./",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "icon.png", 
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["health", "fitness", "lifestyle"],
+  "lang": "ja",
+  "dir": "ltr"
+}

@@ -6,6 +6,11 @@
     <title>インターバル速歩 - Japanese Walking</title>
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="apple-touch-icon" href="icon.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Japanese Walking">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -301,5 +306,96 @@
     <script src="js/view.js" type="module"></script>
     <script src="js/controller.js" type="module"></script>
     <script src="js/app.js" type="module"></script>
+    
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((registration) => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                        
+                        // Listen for updates
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            if (newWorker) {
+                                newWorker.addEventListener('statechange', () => {
+                                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                        // New content is available, prompt user to refresh
+                                        if (confirm('新しいバージョンが利用可能です。更新しますか？')) {
+                                            window.location.reload();
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    })
+                    .catch((err) => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+
+                // Listen for messages from service worker
+                navigator.serviceWorker.addEventListener('message', (event) => {
+                    if (event.data.type === 'BACKGROUND_SYNC') {
+                        console.log('Background sync message received:', event.data.payload);
+                    } else if (event.data.type === 'START_WALKING_FROM_NOTIFICATION') {
+                        // Handle starting walking session from push notification
+                        const startBtn = document.getElementById('startWalkBtn');
+                        if (startBtn && !startBtn.disabled) {
+                            startBtn.click();
+                        }
+                    }
+                });
+            });
+        }
+
+        // Handle PWA install prompt
+        let deferredPrompt;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('beforeinstallprompt Event fired');
+            e.preventDefault();
+            deferredPrompt = e;
+            
+            // Show install button (you can customize this UI)
+            showInstallPromotion();
+        });
+
+        function showInstallPromotion() {
+            // Create install button if it doesn't exist
+            if (!document.getElementById('installBtn')) {
+                const installBtn = document.createElement('button');
+                installBtn.id = 'installBtn';
+                installBtn.className = 'fixed bottom-4 right-4 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium flex items-center gap-2 z-50';
+                installBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    アプリをインストール
+                `;
+                
+                installBtn.addEventListener('click', async () => {
+                    if (deferredPrompt) {
+                        deferredPrompt.prompt();
+                        const { outcome } = await deferredPrompt.userChoice;
+                        console.log(`User response to the install prompt: ${outcome}`);
+                        deferredPrompt = null;
+                        installBtn.remove();
+                    }
+                });
+                
+                document.body.appendChild(installBtn);
+            }
+        }
+
+        // Hide install button when app is installed
+        window.addEventListener('appinstalled', (evt) => {
+            console.log('PWA was installed');
+            const installBtn = document.getElementById('installBtn');
+            if (installBtn) {
+                installBtn.remove();
+            }
+        });
+    </script>
 </body>
 </html>
