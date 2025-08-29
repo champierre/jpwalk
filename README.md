@@ -15,7 +15,10 @@
 - **永続的なデータ保存**: IndexedDBを使用してセッション履歴を保存
 - **セッション履歴管理**: 過去のウォーキングセッションの詳細表示と削除
 - **週間進捗表示**: 今週のセッション数と総時間の統計
+- **日別達成度グラフ**: 週間進捗の視覚的表示
 - **ページネーション**: セッション一覧の10件ずつ表示
+- **データエクスポート/インポート**: JSONファイルでのデータバックアップと復元機能
+- **フラッシュメッセージ**: 操作結果のユーザーフィードバック
 - **オフライン対応**: ネットワーク接続不要で動作
 
 ## 🛠️ 技術スタック
@@ -26,7 +29,9 @@
 - **Leaflet.js**: インタラクティブな地図表示とルート描画
 - **Geolocation API**: GPS位置情報の取得
 - **Tailwind CSS**: ユーティリティファーストCSSフレームワーク
-- **Vanilla JavaScript**: フレームワークを使用しないピュアなJavaScript
+- **ES6 Modules**: モジュラーなJavaScript設計
+- **Jest**: テストフレームワーク
+- **MVC Architecture**: Model-View-Controller設計パターン
 
 ## 📦 セットアップ
 
@@ -58,11 +63,18 @@ git push origin main
 CORS制約のため、ローカルサーバーが必要です：
 
 ```bash
-# Python 3を使用する場合
-python -m http.server 8000
+# 依存関係のインストール（テスト実行する場合）
+npm install
 
-# Node.jsのhttp-serverを使用する場合
+# 開発サーバーの起動
+npm run dev
+# または
+python -m http.server 8000
+# または
 npx http-server
+
+# テスト実行
+npm test
 
 # VSCodeのLive Server拡張機能も使用可能
 ```
@@ -85,9 +97,15 @@ npx http-server
 
 ### セッション履歴
 - 今週の進捗統計（セッション数、総時間）
+- 日別達成度の視覚的グラフ表示
 - 最近のセッション3件の表示
 - 全セッション一覧（10件ずつページネーション表示）
 - セッション詳細の表示・削除
+
+### データ管理
+- **エクスポート**: 全セッションと位置情報をJSONファイルで保存
+- **インポート**: バックアップファイルからのデータ復元
+- **統合モード**: 既存データと新データの統合オプション
 
 ## 🌐 ブラウザサポート
 
@@ -103,8 +121,14 @@ npx http-server
 ```
 jpwalk/
 ├── index.html              # メインHTML（Tailwind CSS UI）
-├── app.js                  # ウォーキングセッション管理とタイマーロジック
+├── js/                     # JavaScript モジュール
+│   ├── app.js             # アプリケーションエントリーポイント
+│   ├── controller.js      # メインコントローラー
+│   ├── model.js           # データモデルとビジネスロジック
+│   └── view.js            # UIビューとDOM操作
 ├── sqlite-worker.js        # Web Worker for SQL.js operations
+├── tests/                  # Jestテストスイート
+├── package.json           # npm設定とテストスクリプト
 ├── icon.png               # アプリケーションアイコン
 ├── README.md               # このファイル
 └── CLAUDE.md               # Claude Code用ガイド
@@ -112,6 +136,12 @@ jpwalk/
 
 ## 🔧 アーキテクチャ
 
+### MVCパターンの実装
+1. **Model** (`js/model.js`): データ管理、SQLite操作、セッション状態管理
+2. **View** (`js/view.js`): UI表示、DOM操作、ユーザーインターフェース
+3. **Controller** (`js/controller.js`): ビジネスロジック、イベント処理、ModelとViewの仲介
+
+### システム構成
 1. **メインスレッド**: UI操作とインターバルタイマー管理
 2. **Web Worker**: sql.jsを使用したSQLite処理
 3. **IndexedDB**: ウォーキングセッションデータの永続化
