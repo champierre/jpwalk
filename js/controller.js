@@ -482,19 +482,73 @@ export class WalkingController {
             const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
             const filename = `jpwalk-data-${dateStr}.json`;
             
-            // Create download link
-            const downloadLink = document.createElement('a');
-            downloadLink.href = URL.createObjectURL(dataBlob);
-            downloadLink.download = filename;
-            downloadLink.style.display = 'none';
+            // Check if iOS Safari (iPhone/iPad)
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
             
-            // Trigger download
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-            
-            // Clean up
-            URL.revokeObjectURL(downloadLink.href);
+            if (isIOS || isSafari) {
+                // iOS Safari specific handling
+                // Convert blob to data URL for better iOS compatibility
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const dataUrl = reader.result;
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = dataUrl;
+                    downloadLink.download = filename;
+                    downloadLink.setAttribute('target', '_blank');
+                    
+                    // Add visual indication for iOS
+                    downloadLink.textContent = 'Download ' + filename;
+                    downloadLink.style.position = 'fixed';
+                    downloadLink.style.top = '50%';
+                    downloadLink.style.left = '50%';
+                    downloadLink.style.transform = 'translate(-50%, -50%)';
+                    downloadLink.style.padding = '12px 24px';
+                    downloadLink.style.backgroundColor = '#3B82F6';
+                    downloadLink.style.color = 'white';
+                    downloadLink.style.borderRadius = '8px';
+                    downloadLink.style.textDecoration = 'none';
+                    downloadLink.style.zIndex = '10000';
+                    downloadLink.style.fontSize = '16px';
+                    downloadLink.style.fontWeight = 'bold';
+                    downloadLink.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
+                    
+                    document.body.appendChild(downloadLink);
+                    
+                    // For iOS, we need user interaction to trigger download
+                    downloadLink.addEventListener('click', () => {
+                        setTimeout(() => {
+                            document.body.removeChild(downloadLink);
+                        }, 1000);
+                    });
+                    
+                    // Auto-remove after 10 seconds if not clicked
+                    setTimeout(() => {
+                        if (document.body.contains(downloadLink)) {
+                            document.body.removeChild(downloadLink);
+                        }
+                    }, 10000);
+                    
+                    // Show instruction for iOS users
+                    alert(`ファイル「${filename}」をダウンロードするには、表示されたボタンをタップしてください。\n\nダウンロード後、「ファイル」アプリの「ダウンロード」フォルダで確認できます。`);
+                };
+                reader.readAsDataURL(dataBlob);
+                
+            } else {
+                // Standard download for other browsers
+                const downloadLink = document.createElement('a');
+                downloadLink.href = URL.createObjectURL(dataBlob);
+                downloadLink.download = filename;
+                downloadLink.style.display = 'none';
+                
+                // Trigger download
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                
+                // Clean up
+                URL.revokeObjectURL(downloadLink.href);
+            }
             
             console.log('✅ データエクスポート完了:', filename);
             this.view.showExportSuccess(exportData.metadata);
