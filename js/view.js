@@ -264,13 +264,37 @@ export class WalkingView {
     displayLocations(locations) {
         const locationsList = document.getElementById('locationsList');
         
-        // デバッグログを追加
-        console.log('🗺️ displayLocations called with:', locations);
-        console.log('📊 Number of locations:', locations ? locations.length : 0);
-        
-        if (!locations || locations.length === 0) {
-            locationsList.innerHTML = '<p class="text-gray-500 text-sm">位置情報がありません</p>';
+        if (!locations || locations.length < 2) {
+            locationsList.innerHTML = '<p class="text-gray-500 text-sm">区間データがありません（2地点以上必要）</p>';
             return;
+        }
+
+        // Calculate segments from location points
+        const segments = [];
+        for (let i = 1; i < locations.length; i++) {
+            const startLoc = locations[i - 1];
+            const endLoc = locations[i];
+            
+            // Calculate distance using haversine formula
+            const distance = this.calculateDistance(
+                startLoc.latitude, startLoc.longitude,
+                endLoc.latitude, endLoc.longitude
+            );
+            
+            // Calculate time difference in seconds
+            const timeDiff = (new Date(endLoc.timestamp) - new Date(startLoc.timestamp)) / 1000;
+            
+            // Calculate speed in km/h (distance in km, time in seconds)
+            const speed = timeDiff > 0 ? (distance / timeDiff) * 3600 : 0;
+            
+            segments.push({
+                startTime: new Date(startLoc.timestamp),
+                endTime: new Date(endLoc.timestamp),
+                phase: startLoc.phase, // Use the phase at the start of segment
+                distance: distance,
+                speed: speed,
+                duration: timeDiff
+            });
         }
 
         const table = document.createElement('table');
@@ -279,39 +303,59 @@ export class WalkingView {
         const headerRow = document.createElement('tr');
         headerRow.className = 'border-b border-gray-200';
         headerRow.innerHTML = `
-            <th class="text-left py-2 text-gray-600 font-medium">時刻</th>
+            <th class="text-left py-2 text-gray-600 font-medium">時間</th>
             <th class="text-left py-2 text-gray-600 font-medium">フェーズ</th>
-            <th class="text-left py-2 text-gray-600 font-medium">緯度</th>
-            <th class="text-left py-2 text-gray-600 font-medium">経度</th>
+            <th class="text-left py-2 text-gray-600 font-medium">距離</th>
+            <th class="text-left py-2 text-gray-600 font-medium">速度</th>
         `;
         table.appendChild(headerRow);
 
-        locations.forEach((location, index) => {
-            console.log(`📍 Location ${index + 1}:`, location);
-            
+        segments.forEach((segment) => {
             const row = document.createElement('tr');
             row.className = 'border-b border-gray-100';
             
-            const time = new Date(location.timestamp).toLocaleTimeString('ja-JP', {
+            const startTime = segment.startTime.toLocaleTimeString('ja-JP', {
                 hour: '2-digit',
                 minute: '2-digit',
                 second: '2-digit'
             });
             
-            const phaseColor = location.phase === 'fast' ? 'text-orange-600' : 'text-blue-600';
-            const phaseName = location.phase === 'fast' ? '速歩き' : 'ゆっくり歩き';
+            const endTime = segment.endTime.toLocaleTimeString('ja-JP', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            
+            const phaseColor = segment.phase === 'fast' ? 'text-orange-600' : 'text-blue-600';
+            const phaseName = segment.phase === 'fast' ? '速歩き' : 'ゆっくり歩き';
             
             row.innerHTML = `
-                <td class="py-2">${time}</td>
+                <td class="py-2 text-xs">${startTime} - ${endTime}</td>
                 <td class="py-2 ${phaseColor} font-medium">${phaseName}</td>
-                <td class="py-2 font-mono text-xs">${location.latitude.toFixed(6)}</td>
-                <td class="py-2 font-mono text-xs">${location.longitude.toFixed(6)}</td>
+                <td class="py-2">${(segment.distance * 1000).toFixed(0)}m</td>
+                <td class="py-2">${segment.speed.toFixed(1)}km/h</td>
             `;
             table.appendChild(row);
         });
 
         locationsList.innerHTML = '';
         locationsList.appendChild(table);
+    }
+
+    // Add distance calculation helper method
+    calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Earth radius in kilometers
+        const dLat = this.toRad(lat2 - lat1);
+        const dLon = this.toRad(lon2 - lon1);
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    toRad(value) {
+        return value * Math.PI / 180;
     }
 
     updateWeeklyStats(stats) {
