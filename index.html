@@ -65,7 +65,10 @@
                     <img src="icon.png" alt="Japanese Walking" class="w-12 h-12 rounded-lg">
                     <div class="flex-1">
                         <p class="font-semibold text-gray-900">Japanese Walkingをインストール</p>
-                        <p class="text-sm text-gray-600">ホーム画面に追加してオフラインでも使用可能</p>
+                        <p class="text-sm text-gray-600 mb-1">ホーム画面に追加してオフラインでも使用可能</p>
+                        <p class="text-xs text-amber-600">
+                            ⚠️ 注意：ブラウザ版とアプリ版ではデータが別々に保存されます
+                        </p>
                     </div>
                     <button id="installDismiss" class="text-gray-400 hover:text-gray-600">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
@@ -102,8 +105,13 @@
                         <span>右上の「追加」をタップ</span>
                     </li>
                 </ol>
-                <button id="iosInstallClose" class="w-full mt-6 bg-walking-green text-white px-4 py-2 rounded-lg font-medium hover:bg-walking-dark transition-colors">
-                    わかりました
+                <div class="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p class="text-xs text-amber-700">
+                        ⚠️ <strong>重要：</strong>ブラウザ版とアプリ版ではデータが別々に保存されます。これまでの履歴はアプリ版では表示されません。
+                    </p>
+                </div>
+                <button id="iosInstallClose" class="w-full mt-4 bg-walking-green text-white px-4 py-2 rounded-lg font-medium hover:bg-walking-dark transition-colors">
+                    理解しました
                 </button>
             </div>
         </div>
