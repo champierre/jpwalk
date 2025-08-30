@@ -59,7 +59,7 @@
 <body class="bg-gray-50 min-h-screen">
     <div class="max-w-md mx-auto px-4 py-6">
         <!-- PWA Install Prompt Banner -->
-        <div id="installPrompt" class="hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg animate-slide-up">
+        <div id="installPrompt" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg animate-slide-up" style="z-index: 10000;">
             <div class="max-w-md mx-auto px-4 py-3">
                 <div class="flex items-center gap-3">
                     <img src="icon.png" alt="Japanese Walking" class="w-12 h-12 rounded-lg">
@@ -85,7 +85,7 @@
         </div>
 
         <!-- iOS Install Instructions Modal -->
-        <div id="iosInstallModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+        <div id="iosInstallModal" class="hidden fixed inset-0 flex items-center justify-center bg-black bg-opacity-50" style="z-index: 10001;">
             <div class="bg-white rounded-lg max-w-sm mx-4 p-6">
                 <h3 class="text-lg font-semibold mb-4">ホーム画面に追加</h3>
                 <ol class="text-sm text-gray-700 space-y-3">
