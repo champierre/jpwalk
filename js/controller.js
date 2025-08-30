@@ -689,6 +689,10 @@ export class WalkingController {
                            window.navigator.standalone ||
                            document.referrer.includes('android-app://');
         
+        console.log('📱 PWA Install Check - isStandalone:', isStandalone);
+        console.log('📱 navigator.standalone:', window.navigator.standalone);
+        console.log('📱 display-mode:', window.matchMedia('(display-mode: standalone)').matches);
+        
         if (isStandalone) {
             console.log('App is already installed');
             return;
@@ -698,11 +702,12 @@ export class WalkingController {
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             this.deferredPrompt = e;
-            console.log('Install prompt available');
+            console.log('Install prompt available (Chrome/Edge)');
             
             // Show custom install banner after a delay
             setTimeout(() => {
                 if (!this.hasShownInstallPrompt()) {
+                    console.log('Showing install prompt (Chrome/Edge)');
                     this.showInstallPrompt();
                 }
             }, 3000);
@@ -710,11 +715,21 @@ export class WalkingController {
         
         // Check if iOS Safari and not installed
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        console.log('📱 iOS Detection - isIOS:', isIOS);
+        console.log('📱 User Agent:', navigator.userAgent);
+        
         if (isIOS && !isStandalone) {
+            console.log('📱 iOS Safari detected, scheduling install prompt...');
+            console.log('📱 Has shown prompt before:', this.hasShownInstallPrompt());
+            
             // Show install prompt for iOS after user has used the app for a bit
             setTimeout(() => {
+                console.log('📱 Timer fired, checking if should show prompt...');
                 if (!this.hasShownInstallPrompt()) {
+                    console.log('📱 Showing install prompt for iOS');
                     this.showInstallPrompt();
+                } else {
+                    console.log('📱 Install prompt already shown before, skipping');
                 }
             }, 5000);
         }
@@ -726,8 +741,13 @@ export class WalkingController {
     
     showInstallPrompt() {
         const prompt = document.getElementById('installPrompt');
+        console.log('📱 showInstallPrompt called, element found:', !!prompt);
         if (prompt) {
+            console.log('📱 Removing hidden class from install prompt');
             prompt.classList.remove('hidden');
+            console.log('📱 Install prompt should now be visible');
+        } else {
+            console.error('📱 Install prompt element not found!');
         }
     }
     
