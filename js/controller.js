@@ -704,13 +704,11 @@ export class WalkingController {
             this.deferredPrompt = e;
             console.log('Install prompt available (Chrome/Edge)');
             
-            // Show custom install banner after a delay
-            setTimeout(() => {
-                if (!this.hasShownInstallPrompt()) {
-                    console.log('Showing install prompt (Chrome/Edge)');
-                    this.showInstallPrompt();
-                }
-            }, 3000);
+            // Show custom install banner immediately
+            if (!this.hasShownInstallPrompt()) {
+                console.log('Showing install prompt (Chrome/Edge)');
+                this.showInstallPrompt();
+            }
         });
         
         // Check if iOS Safari and not installed
@@ -719,19 +717,16 @@ export class WalkingController {
         console.log('📱 User Agent:', navigator.userAgent);
         
         if (isIOS && !isStandalone) {
-            console.log('📱 iOS Safari detected, scheduling install prompt...');
+            console.log('📱 iOS Safari detected, checking if should show prompt...');
             console.log('📱 Has shown prompt before:', this.hasShownInstallPrompt());
             
-            // Show install prompt for iOS after user has used the app for a bit
-            setTimeout(() => {
-                console.log('📱 Timer fired, checking if should show prompt...');
-                if (!this.hasShownInstallPrompt()) {
-                    console.log('📱 Showing install prompt for iOS');
-                    this.showInstallPrompt();
-                } else {
-                    console.log('📱 Install prompt already shown before, skipping');
-                }
-            }, 5000);
+            // Show install prompt for iOS immediately
+            if (!this.hasShownInstallPrompt()) {
+                console.log('📱 Showing install prompt for iOS');
+                this.showInstallPrompt();
+            } else {
+                console.log('📱 Install prompt already shown recently, skipping');
+            }
         }
     }
     
