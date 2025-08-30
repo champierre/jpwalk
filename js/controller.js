@@ -73,6 +73,7 @@ export class WalkingController {
         await this.model.initSQLite();
         this.router.init();
         this.setupEventListeners();
+        this.setupInstallPrompt();
         
         document.addEventListener('dbReady', () => {
             if (this.router.isInitialized && window.location.hash) {
@@ -110,6 +111,12 @@ export class WalkingController {
                 e.target.value = ''; // Reset file input
             }
         });
+        
+        // PWA Install prompt event listeners
+        document.getElementById('installAccept').addEventListener('click', () => this.handleInstallAccept());
+        document.getElementById('installLater').addEventListener('click', () => this.hideInstallPrompt());
+        document.getElementById('installDismiss').addEventListener('click', () => this.dismissInstallPrompt());
+        document.getElementById('iosInstallClose').addEventListener('click', () => this.hideIosInstallModal());
     }
 
     // Navigation methods
@@ -672,6 +679,108 @@ export class WalkingController {
         }
     }
 
+    // PWA Install Prompt methods
+    setupInstallPrompt() {
+        // Store install prompt event
+        this.deferredPrompt = null;
+        
+        // Check if app is already installed (standalone mode)
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                           window.navigator.standalone ||
+                           document.referrer.includes('android-app://');
+        
+        if (isStandalone) {
+            console.log('App is already installed');
+            return;
+        }
+        
+        // Listen for beforeinstallprompt event (Chrome/Edge)
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.deferredPrompt = e;
+            console.log('Install prompt available');
+            
+            // Show custom install banner after a delay
+            setTimeout(() => {
+                if (!this.hasShownInstallPrompt()) {
+                    this.showInstallPrompt();
+                }
+            }, 3000);
+        });
+        
+        // Check if iOS Safari and not installed
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        if (isIOS && !isStandalone) {
+            // Show install prompt for iOS after user has used the app for a bit
+            setTimeout(() => {
+                if (!this.hasShownInstallPrompt()) {
+                    this.showInstallPrompt();
+                }
+            }, 5000);
+        }
+    }
+    
+    hasShownInstallPrompt() {
+        return localStorage.getItem('installPromptShown') === 'true';
+    }
+    
+    showInstallPrompt() {
+        const prompt = document.getElementById('installPrompt');
+        if (prompt) {
+            prompt.classList.remove('hidden');
+        }
+    }
+    
+    hideInstallPrompt() {
+        const prompt = document.getElementById('installPrompt');
+        if (prompt) {
+            prompt.classList.add('hidden');
+        }
+    }
+    
+    dismissInstallPrompt() {
+        this.hideInstallPrompt();
+        localStorage.setItem('installPromptShown', 'true');
+    }
+    
+    async handleInstallAccept() {
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+        
+        if (isIOS) {
+            // Show iOS-specific instructions
+            this.showIosInstallModal();
+            this.hideInstallPrompt();
+        } else if (this.deferredPrompt) {
+            // Show browser install prompt
+            this.deferredPrompt.prompt();
+            const { outcome } = await this.deferredPrompt.userChoice;
+            console.log(`User response to install prompt: ${outcome}`);
+            
+            if (outcome === 'accepted') {
+                console.log('User accepted the install prompt');
+                localStorage.setItem('installPromptShown', 'true');
+            }
+            
+            this.deferredPrompt = null;
+            this.hideInstallPrompt();
+        }
+    }
+    
+    showIosInstallModal() {
+        const modal = document.getElementById('iosInstallModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+    
+    hideIosInstallModal() {
+        const modal = document.getElementById('iosInstallModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        localStorage.setItem('installPromptShown', 'true');
+    }
+    
     // Utility methods
     calculateDistance(lat1, lon1, lat2, lon2) {
         const R = 6371;
