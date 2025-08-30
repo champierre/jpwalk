@@ -6,7 +6,6 @@ export class WalkingModel {
         this.pendingRequests = new Map();
         this.currentSession = null;
         this.currentSessionId = null;
-        this.localStorageSessionId = 0;
     }
 
     // Database operations
@@ -43,9 +42,11 @@ export class WalkingModel {
 
             this.worker.onerror = (error) => {
                 console.error('💾 Worker error:', error);
-                console.log('💾 Falling back to LocalStorage due to worker error');
-                this.worker = null;
-                this.initLocalStorageFallback();
+                console.log('💾 Retrying worker initialization...');
+                // Retry worker initialization instead of falling back
+                setTimeout(() => {
+                    this.initSQLite();
+                }, 1000);
             };
 
             // Initialize the worker
@@ -55,67 +56,14 @@ export class WalkingModel {
             
         } catch (error) {
             console.error('SQLite 初期化エラー:', error);
-            this.initLocalStorageFallback();
+            // Retry instead of fallback
+            console.log('💾 Retrying SQLite initialization...');
+            setTimeout(() => {
+                this.initSQLite();
+            }, 2000);
         }
     }
 
-    async initLocalStorageFallback() {
-        console.log('💾 LocalStorageフォールバックを使用します');
-        
-        // Try to migrate data from IndexedDB if available
-        await this.migrateFromIndexedDBToLocalStorage();
-        
-        if (!localStorage.getItem('walkingSessions')) {
-            localStorage.setItem('walkingSessions', JSON.stringify([]));
-        }
-        if (!localStorage.getItem('walkingLocations')) {
-            localStorage.setItem('walkingLocations', JSON.stringify([]));
-        }
-        
-        this.localStorageSessionId = parseInt(localStorage.getItem('lastSessionId') || '0');
-        
-        document.dispatchEvent(new CustomEvent('dbReady'));
-    }
-    
-    async migrateFromIndexedDBToLocalStorage() {
-        try {
-            console.log('💾 Attempting to migrate data from IndexedDB to LocalStorage...');
-            
-            // Check if we already have data in LocalStorage
-            const existingSessions = localStorage.getItem('walkingSessions');
-            if (existingSessions && JSON.parse(existingSessions).length > 0) {
-                console.log('💾 LocalStorage already has data, skipping migration');
-                return;
-            }
-            
-            // Try to read SQLite data directly from IndexedDB
-            const request = indexedDB.open('jpwalk_db', 1);
-            
-            request.onsuccess = async (event) => {
-                const db = event.target.result;
-                
-                if (!db.objectStoreNames.contains('database')) {
-                    console.log('💾 No IndexedDB data found to migrate');
-                    return;
-                }
-                
-                const transaction = db.transaction(['database'], 'readonly');
-                const store = transaction.objectStore('database');
-                const getRequest = store.get('main');
-                
-                getRequest.onsuccess = async () => {
-                    if (getRequest.result && getRequest.result.data) {
-                        console.log('💾 Found IndexedDB data, attempting to extract...');
-                        // This would require SQL.js to parse the data, which is complex
-                        // For now, we'll skip this approach and use a simpler solution
-                    }
-                };
-            };
-            
-        } catch (error) {
-            console.log('💾 Migration from IndexedDB failed:', error);
-        }
-    }
 
     async execSQL(query, params = []) {
         if (!this.worker) {
@@ -140,8 +88,7 @@ export class WalkingModel {
 
     async selectObjects(query, params = []) {
         if (!this.worker) {
-            const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-            return sessions;
+            throw new Error('Database not initialized');
         }
 
         return new Promise((resolve, reject) => {
@@ -167,8 +114,7 @@ export class WalkingModel {
 
     async selectValue(query, params = []) {
         if (!this.worker) {
-            const result = await this.selectObject(query, params);
-            return result ? Object.values(result)[0] : null;
+            throw new Error('Database not initialized');
         }
 
         return new Promise((resolve, reject) => {
@@ -189,143 +135,91 @@ export class WalkingModel {
 
     // Session management
     async saveSession(duration) {
+        if (!this.worker) {
+            throw new Error('Database not initialized');
+        }
+
         const sessionData = {
             duration: Math.floor(duration / 1000),
             distance: 0,
             created_at: new Date(this.currentSession.startTime).toISOString()
         };
 
-        if (this.worker) {
-            try {
-                const result = await this.execSQL(
-                    'INSERT INTO walking_sessions (duration, distance, created_at) VALUES (?, ?, ?)',
-                    [sessionData.duration, sessionData.distance, sessionData.created_at]
-                );
-                
-                // Get the session ID from the exec result
-                const sessionId = result.lastInsertRowId;
-                console.log('セッションをSQLiteに保存しました:', sessionId);
-                return sessionId;
-            } catch (error) {
-                console.error('SQLiteセッション保存エラー:', error);
-                return this.saveSessionToLocalStorage(sessionData);
-            }
-        } else {
-            return this.saveSessionToLocalStorage(sessionData);
-        }
-    }
-
-    saveSessionToLocalStorage(sessionData) {
-        const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-        const sessionId = ++this.localStorageSessionId;
+        const result = await this.execSQL(
+            'INSERT INTO walking_sessions (duration, distance, created_at) VALUES (?, ?, ?)',
+            [sessionData.duration, sessionData.distance, sessionData.created_at]
+        );
         
-        const session = {
-            id: sessionId,
-            ...sessionData
-        };
-        
-        sessions.push(session);
-        localStorage.setItem('walkingSessions', JSON.stringify(sessions));
-        localStorage.setItem('lastSessionId', sessionId.toString());
-        
-        console.log('セッションをLocalStorageに保存しました:', sessionId);
+        // Get the session ID from the exec result
+        const sessionId = result.lastInsertRowId;
+        console.log('セッションをSQLiteに保存しました:', sessionId);
         return sessionId;
     }
 
     // セッション開始時にデータベースに初期セッションを作成
     async createInitialSession(startTime) {
+        if (!this.worker) {
+            throw new Error('Database not initialized');
+        }
+
         const sessionData = {
             duration: 0, // 初期値（後で更新される）
             distance: 0,
             created_at: new Date(startTime).toISOString()
         };
 
-        if (this.worker) {
-            try {
-                const result = await this.execSQL(
-                    'INSERT INTO walking_sessions (duration, distance, created_at) VALUES (?, ?, ?)',
-                    [sessionData.duration, sessionData.distance, sessionData.created_at]
-                );
-                
-                const sessionId = result.lastInsertRowId;
-                console.log('🆔 初期セッションをSQLiteに作成しました:', sessionId);
-                return sessionId;
-            } catch (error) {
-                console.error('SQLite初期セッション作成エラー:', error);
-                return this.saveSessionToLocalStorage(sessionData);
-            }
-        } else {
-            return this.saveSessionToLocalStorage(sessionData);
-        }
+        const result = await this.execSQL(
+            'INSERT INTO walking_sessions (duration, distance, created_at) VALUES (?, ?, ?)',
+            [sessionData.duration, sessionData.distance, sessionData.created_at]
+        );
+        
+        const sessionId = result.lastInsertRowId;
+        console.log('🆔 初期セッションをSQLiteに作成しました:', sessionId);
+        return sessionId;
     }
 
     // セッション終了時にデータを更新
     async updateSession(sessionId, duration) {
         console.log('🔄 セッション更新 - ID:', sessionId, 'Duration:', duration);
         
-        if (this.worker) {
-            try {
-                await this.execSQL(
-                    'UPDATE walking_sessions SET duration = ? WHERE id = ?',
-                    [Math.floor(duration / 1000), sessionId]
-                );
-                console.log('✅ セッション更新完了:', sessionId);
-                return sessionId;
-            } catch (error) {
-                console.error('SQLiteセッション更新エラー:', error);
-                // LocalStorageでは新規作成になってしまうが、フォールバック
-                return await this.saveSession(duration);
-            }
-        } else {
-            // LocalStorageでは更新が難しいので新規作成
-            return await this.saveSession(duration);
+        if (!this.worker) {
+            throw new Error('Database not initialized');
         }
+
+        await this.execSQL(
+            'UPDATE walking_sessions SET duration = ? WHERE id = ?',
+            [Math.floor(duration / 1000), sessionId]
+        );
+        console.log('✅ セッション更新完了:', sessionId);
+        return sessionId;
     }
 
     // セッション終了時に距離と時間を更新
     async updateSessionWithDistance(sessionId, duration, distance) {
         console.log('🔄 セッション更新（距離込み） - ID:', sessionId, 'Duration:', duration, 'Distance:', distance);
         
-        if (this.worker) {
-            try {
-                await this.execSQL(
-                    'UPDATE walking_sessions SET duration = ?, distance = ? WHERE id = ?',
-                    [Math.floor(duration / 1000), distance, sessionId]
-                );
-                console.log('✅ セッション更新完了（距離込み）:', sessionId);
-                return sessionId;
-            } catch (error) {
-                console.error('SQLiteセッション更新エラー:', error);
-                // LocalStorageではフォールバック処理
-                return await this.updateSessionWithDistanceLocalStorage(sessionId, duration, distance);
-            }
-        } else {
-            return await this.updateSessionWithDistanceLocalStorage(sessionId, duration, distance);
+        if (!this.worker) {
+            throw new Error('Database not initialized');
         }
+
+        await this.execSQL(
+            'UPDATE walking_sessions SET duration = ?, distance = ? WHERE id = ?',
+            [Math.floor(duration / 1000), distance, sessionId]
+        );
+        console.log('✅ セッション更新完了（距離込み）:', sessionId);
+        return sessionId;
     }
 
-    async updateSessionWithDistanceLocalStorage(sessionId, duration, distance) {
-        const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-        const sessionIndex = sessions.findIndex(s => s.id == sessionId);
-        
-        if (sessionIndex !== -1) {
-            sessions[sessionIndex].duration = Math.floor(duration / 1000);
-            sessions[sessionIndex].distance = distance;
-            localStorage.setItem('walkingSessions', JSON.stringify(sessions));
-            console.log('✅ LocalStorageセッション更新完了（距離込み）:', sessionId);
-            return sessionId;
-        } else {
-            console.warn('⚠️ LocalStorageでセッションが見つかりません:', sessionId);
-            // フォールバックとして新しいセッションを作成
-            return await this.saveSession(duration);
-        }
-    }
 
     async saveLocation(sessionId, location) {
         console.log('💾 Saving location for session ID:', sessionId);
         console.log('📍 Location data:', location);
         console.log('🔄 Current session state:', this.currentSession);
         
+        if (!this.worker) {
+            throw new Error('Database not initialized');
+        }
+
         const locationData = {
             session_id: sessionId,
             latitude: location.lat,
@@ -335,94 +229,65 @@ export class WalkingModel {
             created_at: new Date(this.currentSession.startTime).toISOString()
         };
 
-        if (this.worker) {
-            try {
-                const result = await this.execSQL(
-                    'INSERT INTO walking_locations (session_id, latitude, longitude, timestamp, phase, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-                    [locationData.session_id, locationData.latitude, locationData.longitude, locationData.timestamp, locationData.phase, locationData.created_at]
-                );
-                console.log('📍 位置情報をSQLiteに保存しました:', location);
-                console.log('💾 Insert result:', result);
-            } catch (error) {
-                console.error('SQLite位置情報保存エラー:', error);
-                this.saveLocationToLocalStorage(locationData);
-            }
-        } else {
-            this.saveLocationToLocalStorage(locationData);
-        }
+        const result = await this.execSQL(
+            'INSERT INTO walking_locations (session_id, latitude, longitude, timestamp, phase, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+            [locationData.session_id, locationData.latitude, locationData.longitude, locationData.timestamp, locationData.phase, locationData.created_at]
+        );
+        console.log('📍 位置情報をSQLiteに保存しました:', location);
+        console.log('💾 Insert result:', result);
     }
 
-    saveLocationToLocalStorage(locationData) {
-        const locations = JSON.parse(localStorage.getItem('walkingLocations') || '[]');
-        locations.push({
-            id: Date.now(),
-            ...locationData
-        });
-        localStorage.setItem('walkingLocations', JSON.stringify(locations));
-        console.log('📍 位置情報をLocalStorageに保存しました:', locationData);
-    }
 
     async getSessionById(sessionId) {
-        if (this.worker) {
-            return await this.selectObject('SELECT * FROM walking_sessions WHERE id = ?', [sessionId]);
-        } else {
-            const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-            return sessions.find(s => s.id == sessionId);
+        if (!this.worker) {
+            throw new Error('Database not initialized');
         }
+        return await this.selectObject('SELECT * FROM walking_sessions WHERE id = ?', [sessionId]);
     }
 
     async getLocationsBySessionId(sessionId) {
         console.log('🔍 Getting locations for session ID:', sessionId);
         
-        if (this.worker) {
-            const locations = await this.selectObjects('SELECT * FROM walking_locations WHERE session_id = ? ORDER BY timestamp', [sessionId]);
-            console.log('📊 SQLite query result for session', sessionId, ':', locations);
-            return locations;
-        } else {
-            const locations = JSON.parse(localStorage.getItem('walkingLocations') || '[]');
-            const filtered = locations.filter(l => l.session_id == sessionId).sort((a, b) => a.timestamp - b.timestamp);
-            console.log('📊 LocalStorage filtered result for session', sessionId, ':', filtered);
-            return filtered;
+        if (!this.worker) {
+            throw new Error('Database not initialized');
         }
+
+        const locations = await this.selectObjects('SELECT * FROM walking_locations WHERE session_id = ? ORDER BY timestamp', [sessionId]);
+        console.log('📊 SQLite query result for session', sessionId, ':', locations);
+        return locations;
     }
 
     async getRecentSessions(limit = 3) {
-        if (this.worker) {
-            return await this.selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC LIMIT ?', [limit]);
-        } else {
-            const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-            return sessions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, limit);
+        if (!this.worker) {
+            throw new Error('Database not initialized');
         }
+        return await this.selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC LIMIT ?', [limit]);
     }
 
     async getAllSessions(page = 1, limit = 10) {
         const offset = (page - 1) * limit;
         
-        if (this.worker) {
-            const sessions = await this.selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset]);
-            const totalCount = await this.selectValue('SELECT COUNT(*) FROM walking_sessions');
-            return { sessions, totalCount };
-        } else {
-            const allSessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-            const sorted = allSessions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            const sessions = sorted.slice(offset, offset + limit);
-            return { sessions, totalCount: allSessions.length };
+        if (!this.worker) {
+            throw new Error('Database not initialized');
         }
+
+        const sessions = await this.selectObjects('SELECT * FROM walking_sessions ORDER BY created_at DESC LIMIT ? OFFSET ?', [limit, offset]);
+        const totalCount = await this.selectValue('SELECT COUNT(*) FROM walking_sessions');
+        return { sessions, totalCount };
     }
 
     // Get total count of all sessions
     async getAllSessionsCount() {
-        if (this.worker) {
-            try {
-                const result = await this.selectValue('SELECT COUNT(*) FROM walking_sessions');
-                return result || 0;
-            } catch (error) {
-                console.error('セッション数取得エラー:', error);
-                return 0;
-            }
-        } else {
-            const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-            return sessions.length;
+        if (!this.worker) {
+            throw new Error('Database not initialized');
+        }
+        
+        try {
+            const result = await this.selectValue('SELECT COUNT(*) FROM walking_sessions');
+            return result || 0;
+        } catch (error) {
+            console.error('セッション数取得エラー:', error);
+            throw error;
         }
     }
 
@@ -431,17 +296,13 @@ export class WalkingModel {
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
         const oneWeekAgoISOString = oneWeekAgo.toISOString();
 
-        if (this.worker) {
-            const count = await this.selectValue('SELECT COUNT(*) FROM walking_sessions WHERE created_at >= ?', [oneWeekAgoISOString]);
-            const duration = await this.selectValue('SELECT SUM(duration) FROM walking_sessions WHERE created_at >= ?', [oneWeekAgoISOString]);
-            return { count: count || 0, duration: duration || 0 };
-        } else {
-            const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-            const weekSessions = sessions.filter(s => new Date(s.created_at) >= oneWeekAgo);
-            const count = weekSessions.length;
-            const duration = weekSessions.reduce((sum, s) => sum + s.duration, 0);
-            return { count, duration };
+        if (!this.worker) {
+            throw new Error('Database not initialized');
         }
+
+        const count = await this.selectValue('SELECT COUNT(*) FROM walking_sessions WHERE created_at >= ?', [oneWeekAgoISOString]);
+        const duration = await this.selectValue('SELECT SUM(duration) FROM walking_sessions WHERE created_at >= ?', [oneWeekAgoISOString]);
+        return { count: count || 0, duration: duration || 0 };
     }
 
     async getDailyStats() {
@@ -467,26 +328,20 @@ export class WalkingModel {
             let sessionCount = 0;
             let totalDuration = 0;
             
-            if (this.worker) {
-                const count = await this.selectValue(
-                    'SELECT COUNT(*) FROM walking_sessions WHERE created_at >= ? AND created_at <= ?', 
-                    [dayStart.toISOString(), dayEnd.toISOString()]
-                );
-                const duration = await this.selectValue(
-                    'SELECT SUM(duration) FROM walking_sessions WHERE created_at >= ? AND created_at <= ?', 
-                    [dayStart.toISOString(), dayEnd.toISOString()]
-                );
-                sessionCount = count || 0;
-                totalDuration = duration || 0;
-            } else {
-                const sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-                const daySessions = sessions.filter(s => {
-                    const sessionDate = new Date(s.created_at);
-                    return sessionDate >= dayStart && sessionDate <= dayEnd;
-                });
-                sessionCount = daySessions.length;
-                totalDuration = daySessions.reduce((sum, s) => sum + s.duration, 0);
+            if (!this.worker) {
+                throw new Error('Database not initialized');
             }
+
+            const count = await this.selectValue(
+                'SELECT COUNT(*) FROM walking_sessions WHERE created_at >= ? AND created_at <= ?', 
+                [dayStart.toISOString(), dayEnd.toISOString()]
+            );
+            const duration = await this.selectValue(
+                'SELECT SUM(duration) FROM walking_sessions WHERE created_at >= ? AND created_at <= ?', 
+                [dayStart.toISOString(), dayEnd.toISOString()]
+            );
+            sessionCount = count || 0;
+            totalDuration = duration || 0;
             
             // Calculate achievement level (0-100)
             // Target: 30 minutes (1800 seconds) per day
@@ -524,18 +379,12 @@ export class WalkingModel {
     }
 
     async deleteSessionById(sessionId) {
-        if (this.worker) {
-            await this.execSQL('DELETE FROM walking_locations WHERE session_id = ?', [sessionId]);
-            await this.execSQL('DELETE FROM walking_sessions WHERE id = ?', [sessionId]);
-        } else {
-            let sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-            sessions = sessions.filter(s => s.id != sessionId);
-            localStorage.setItem('walkingSessions', JSON.stringify(sessions));
-            
-            let locations = JSON.parse(localStorage.getItem('walkingLocations') || '[]');
-            locations = locations.filter(l => l.session_id != sessionId);
-            localStorage.setItem('walkingLocations', JSON.stringify(locations));
+        if (!this.worker) {
+            throw new Error('Database not initialized');
         }
+
+        await this.execSQL('DELETE FROM walking_locations WHERE session_id = ?', [sessionId]);
+        await this.execSQL('DELETE FROM walking_sessions WHERE id = ?', [sessionId]);
     }
 
     
@@ -545,17 +394,15 @@ export class WalkingModel {
             let sessions = [];
             let locations = [];
 
-            if (this.worker) {
-                // Get all sessions from SQLite (exclude the unused locations column)
-                sessions = await this.selectObjects('SELECT id, duration, distance, created_at FROM walking_sessions ORDER BY created_at DESC');
-                
-                // Get all locations from SQLite
-                locations = await this.selectObjects('SELECT * FROM walking_locations ORDER BY session_id, timestamp');
-            } else {
-                // Get data from LocalStorage
-                sessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-                locations = JSON.parse(localStorage.getItem('walkingLocations') || '[]');
+            if (!this.worker) {
+                throw new Error('Database not initialized');
             }
+
+            // Get all sessions from SQLite (exclude the unused locations column)
+            sessions = await this.selectObjects('SELECT id, duration, distance, created_at FROM walking_sessions ORDER BY created_at DESC');
+            
+            // Get all locations from SQLite
+            locations = await this.selectObjects('SELECT * FROM walking_locations ORDER BY session_id, timestamp');
 
             const exportData = {
                 version: '1.0',
@@ -601,35 +448,24 @@ export class WalkingModel {
             let importedSessionsCount = 0;
             for (const session of sessions) {
                 try {
-                    if (this.worker) {
-                        // Check if session already exists (for merge mode)
-                        if (options.merge) {
-                            const existing = await this.selectValue('SELECT COUNT(*) FROM walking_sessions WHERE id = ?', [session.id]);
-                            if (existing > 0) {
-                                console.log(`⏭️ セッション ${session.id} は既に存在するためスキップ`);
-                                continue;
-                            }
-                        }
+                    if (!this.worker) {
+                        throw new Error('Database not initialized');
+                    }
 
-                        // Only import the essential fields, excluding the unused locations column
-                        await this.execSQL(
-                            'INSERT INTO walking_sessions (id, duration, distance, created_at) VALUES (?, ?, ?, ?)',
-                            [session.id, session.duration, session.distance || 0, session.created_at]
-                        );
-                    } else {
-                        // LocalStorage import - clean session object by removing locations field
-                        const cleanSession = {
-                            id: session.id,
-                            duration: session.duration,
-                            distance: session.distance || 0,
-                            created_at: session.created_at
-                        };
-                        const existingSessions = JSON.parse(localStorage.getItem('walkingSessions') || '[]');
-                        if (!options.merge || !existingSessions.find(s => s.id === session.id)) {
-                            existingSessions.push(cleanSession);
-                            localStorage.setItem('walkingSessions', JSON.stringify(existingSessions));
+                    // Check if session already exists (for merge mode)
+                    if (options.merge) {
+                        const existing = await this.selectValue('SELECT COUNT(*) FROM walking_sessions WHERE id = ?', [session.id]);
+                        if (existing > 0) {
+                            console.log(`⏭️ セッション ${session.id} は既に存在するためスキップ`);
+                            continue;
                         }
                     }
+
+                    // Only import the essential fields, excluding the unused locations column
+                    await this.execSQL(
+                        'INSERT INTO walking_sessions (id, duration, distance, created_at) VALUES (?, ?, ?, ?)',
+                        [session.id, session.duration, session.distance || 0, session.created_at]
+                    );
                     importedSessionsCount++;
                 } catch (sessionError) {
                     console.warn(`⚠️ セッション ${session.id} のインポートに失敗:`, sessionError);
@@ -640,27 +476,22 @@ export class WalkingModel {
             let importedLocationsCount = 0;
             for (const location of locations) {
                 try {
-                    if (this.worker) {
-                        // Check if location already exists (for merge mode)
-                        if (options.merge) {
-                            const existing = await this.selectValue('SELECT COUNT(*) FROM walking_locations WHERE id = ?', [location.id]);
-                            if (existing > 0) {
-                                continue;
-                            }
-                        }
+                    if (!this.worker) {
+                        throw new Error('Database not initialized');
+                    }
 
-                        await this.execSQL(
-                            'INSERT INTO walking_locations (id, session_id, latitude, longitude, timestamp, phase, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                            [location.id, location.session_id, location.latitude, location.longitude, location.timestamp, location.phase, location.created_at]
-                        );
-                    } else {
-                        // LocalStorage import
-                        const existingLocations = JSON.parse(localStorage.getItem('walkingLocations') || '[]');
-                        if (!options.merge || !existingLocations.find(l => l.id === location.id)) {
-                            existingLocations.push(location);
-                            localStorage.setItem('walkingLocations', JSON.stringify(existingLocations));
+                    // Check if location already exists (for merge mode)
+                    if (options.merge) {
+                        const existing = await this.selectValue('SELECT COUNT(*) FROM walking_locations WHERE id = ?', [location.id]);
+                        if (existing > 0) {
+                            continue;
                         }
                     }
+
+                    await this.execSQL(
+                        'INSERT INTO walking_locations (id, session_id, latitude, longitude, timestamp, phase, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [location.id, location.session_id, location.latitude, location.longitude, location.timestamp, location.phase, location.created_at]
+                    );
                     importedLocationsCount++;
                 } catch (locationError) {
                     console.warn(`⚠️ 位置情報 ${location.id} のインポートに失敗:`, locationError);
@@ -721,17 +552,14 @@ export class WalkingModel {
 
     async clearAllData() {
         try {
-            if (this.worker) {
-                // Clear SQLite data
-                await this.execSQL('DELETE FROM walking_locations');
-                await this.execSQL('DELETE FROM walking_sessions');
-                console.log('🗑️ SQLiteデータをクリアしました');
-            } else {
-                // Clear LocalStorage data
-                localStorage.removeItem('walkingSessions');
-                localStorage.removeItem('walkingLocations');
-                console.log('🗑️ LocalStorageデータをクリアしました');
+            if (!this.worker) {
+                throw new Error('Database not initialized');
             }
+
+            // Clear SQLite data
+            await this.execSQL('DELETE FROM walking_locations');
+            await this.execSQL('DELETE FROM walking_sessions');
+            console.log('🗑️ SQLiteデータをクリアしました');
         } catch (error) {
             console.error('データクリアエラー:', error);
             throw new Error('データのクリアに失敗しました: ' + error.message);

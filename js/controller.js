@@ -76,14 +76,8 @@ export class WalkingController {
         console.log('💾 Origin:', window.location.origin);
         console.log('💾 Is PWA (standalone):', window.matchMedia('(display-mode: standalone)').matches);
         console.log('💾 Is iOS PWA:', window.navigator.standalone);
-        console.log('💾 LocalStorage available:', typeof Storage !== 'undefined');
         console.log('💾 IndexedDB available:', 'indexedDB' in window);
         
-        // Check existing data
-        const existingSessions = localStorage.getItem('walkingSessions');
-        const existingLocations = localStorage.getItem('walkingLocations');
-        console.log('💾 Existing sessions in localStorage:', existingSessions ? JSON.parse(existingSessions).length : 0);
-        console.log('💾 Existing locations in localStorage:', existingLocations ? JSON.parse(existingLocations).length : 0);
         
         // Debug worker availability
         console.log('💾 Worker available:', 'Worker' in window);
