@@ -750,19 +750,19 @@ export class WalkingController {
             return false;
         }
         
-        // Check if 1 minute (60000ms) has passed since last shown
-        const oneMinute = 60 * 1000;
+        // Check if 24 hours has passed since last shown
+        const twentyFourHours = 24 * 60 * 60 * 1000;
         const timeSinceLastShown = Date.now() - parseInt(lastShownTime);
         
         console.log('📱 Time since last prompt:', Math.floor(timeSinceLastShown / 1000), 'seconds');
         
-        // If more than 1 minute has passed, allow showing again
-        if (timeSinceLastShown > oneMinute) {
-            console.log('📱 More than 1 minute has passed, allowing prompt again');
+        // If more than 24 hours has passed, allow showing again
+        if (timeSinceLastShown > twentyFourHours) {
+            console.log('📱 More than 24 hours has passed, allowing prompt again');
             return false;
         }
         
-        console.log('📱 Less than 1 minute since last prompt, skipping');
+        console.log('📱 Less than 24 hours since last prompt, skipping');
         return true;
     }
     
