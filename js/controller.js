@@ -736,7 +736,25 @@ export class WalkingController {
     }
     
     hasShownInstallPrompt() {
-        return localStorage.getItem('installPromptShown') === 'true';
+        const lastShownTime = localStorage.getItem('installPromptLastShown');
+        if (!lastShownTime) {
+            return false;
+        }
+        
+        // Check if 1 minute (60000ms) has passed since last shown
+        const oneMinute = 60 * 1000;
+        const timeSinceLastShown = Date.now() - parseInt(lastShownTime);
+        
+        console.log('📱 Time since last prompt:', Math.floor(timeSinceLastShown / 1000), 'seconds');
+        
+        // If more than 1 minute has passed, allow showing again
+        if (timeSinceLastShown > oneMinute) {
+            console.log('📱 More than 1 minute has passed, allowing prompt again');
+            return false;
+        }
+        
+        console.log('📱 Less than 1 minute since last prompt, skipping');
+        return true;
     }
     
     showInstallPrompt() {
@@ -745,6 +763,8 @@ export class WalkingController {
         if (prompt) {
             console.log('📱 Removing hidden class from install prompt');
             prompt.classList.remove('hidden');
+            // Record the time when prompt was shown
+            localStorage.setItem('installPromptLastShown', Date.now().toString());
             console.log('📱 Install prompt should now be visible');
         } else {
             console.error('📱 Install prompt element not found!');
@@ -756,11 +776,14 @@ export class WalkingController {
         if (prompt) {
             prompt.classList.add('hidden');
         }
+        // Record the time when prompt was hidden
+        localStorage.setItem('installPromptLastShown', Date.now().toString());
     }
     
     dismissInstallPrompt() {
         this.hideInstallPrompt();
-        localStorage.setItem('installPromptShown', 'true');
+        // Record the time when prompt was dismissed
+        localStorage.setItem('installPromptLastShown', Date.now().toString());
     }
     
     async handleInstallAccept() {
@@ -778,7 +801,8 @@ export class WalkingController {
             
             if (outcome === 'accepted') {
                 console.log('User accepted the install prompt');
-                localStorage.setItem('installPromptShown', 'true');
+                // Don't show again for a longer period if installed
+                localStorage.setItem('installPromptLastShown', Date.now().toString());
             }
             
             this.deferredPrompt = null;
@@ -798,7 +822,8 @@ export class WalkingController {
         if (modal) {
             modal.classList.add('hidden');
         }
-        localStorage.setItem('installPromptShown', 'true');
+        // Record the time when iOS modal was closed
+        localStorage.setItem('installPromptLastShown', Date.now().toString());
     }
     
     // Utility methods
