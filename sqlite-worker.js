@@ -3,13 +3,16 @@ importScripts('https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js')
 
 let SQL;
 let db;
-const DB_NAME = 'jpwalk_db';
+// Use a simple, consistent database name
+const DB_NAME = 'jpwalk_main';
 const DB_VERSION = 1;
 
 // IndexedDB utilities
 const openIndexedDB = () => {
     return new Promise((resolve, reject) => {
         console.log('💾 Worker: Opening IndexedDB:', DB_NAME, 'version:', DB_VERSION);
+        console.log('💾 Worker: Current origin:', self.location ? self.location.origin : 'unknown');
+        console.log('💾 Worker: IndexedDB available:', typeof indexedDB !== 'undefined');
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         
         request.onerror = () => reject(request.error);
@@ -139,6 +142,14 @@ const initializeSQLite = async () => {
         
         const countResult = db.exec('SELECT COUNT(*) as count FROM walking_sessions');
         const count = countResult[0]?.values[0][0] || 0;
+        
+        // Debug: Show all sessions for verification
+        try {
+            const allSessions = db.exec('SELECT id, duration, created_at FROM walking_sessions ORDER BY created_at DESC');
+            console.log('💾 Worker: All sessions in database:', allSessions[0]?.values || []);
+        } catch (err) {
+            console.log('💾 Worker: Could not query sessions:', err);
+        }
         
         postMessage({ type: 'initialized' });
         postMessage({ type: 'dbReady', sessionCount: count });
