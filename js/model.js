@@ -6,49 +6,6 @@ export class WalkingModel {
         this.pendingRequests = new Map();
         this.currentSession = null;
         this.currentSessionId = null;
-        this.syncEnabled = false;
-        this.setupDataSync();
-    }
-
-    // Setup data synchronization between browser and PWA
-    setupDataSync() {
-        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-            console.log('🔄 Setting up data synchronization...');
-            this.syncEnabled = true;
-            
-            // Listen for sync updates from ServiceWorker
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                const { type, data } = event.data;
-                console.log('🔄 Received sync message:', type, data);
-                
-                if (type === 'DATA_SYNC_UPDATE') {
-                    this.handleSyncUpdate(data);
-                }
-            });
-        } else {
-            console.log('⚠️ ServiceWorker not available, data sync disabled');
-        }
-    }
-
-    // Handle incoming sync updates
-    async handleSyncUpdate(syncData) {
-        console.log('🔄 Processing sync update:', syncData);
-        
-        if (syncData.type === 'session_created' || syncData.type === 'session_updated') {
-            // Force refresh of the UI when data changes
-            document.dispatchEvent(new CustomEvent('dataSync', { detail: syncData }));
-        }
-    }
-
-    // Notify other contexts about data changes
-    notifyDataChange(type, data) {
-        if (this.syncEnabled && navigator.serviceWorker.controller) {
-            console.log('📡 Notifying data change:', type, data);
-            navigator.serviceWorker.controller.postMessage({
-                type: 'DATA_UPDATE',
-                data: { type, ...data }
-            });
-        }
     }
 
     // Database operations
@@ -196,14 +153,6 @@ export class WalkingModel {
         // Get the session ID from the exec result
         const sessionId = result.lastInsertRowId;
         console.log('セッションをSQLiteに保存しました:', sessionId);
-        
-        // Notify other contexts about the new session
-        this.notifyDataChange('session_created', { 
-            sessionId, 
-            duration: sessionData.duration,
-            created_at: sessionData.created_at 
-        });
-        
         return sessionId;
     }
 
@@ -226,14 +175,6 @@ export class WalkingModel {
         
         const sessionId = result.lastInsertRowId;
         console.log('🆔 初期セッションをSQLiteに作成しました:', sessionId);
-        
-        // Notify other contexts about the new session
-        this.notifyDataChange('session_created', { 
-            sessionId, 
-            duration: sessionData.duration,
-            created_at: sessionData.created_at 
-        });
-        
         return sessionId;
     }
 
@@ -250,13 +191,6 @@ export class WalkingModel {
             [Math.floor(duration / 1000), sessionId]
         );
         console.log('✅ セッション更新完了:', sessionId);
-        
-        // Notify other contexts about the session update
-        this.notifyDataChange('session_updated', { 
-            sessionId, 
-            duration: Math.floor(duration / 1000) 
-        });
-        
         return sessionId;
     }
 
@@ -273,14 +207,6 @@ export class WalkingModel {
             [Math.floor(duration / 1000), distance, sessionId]
         );
         console.log('✅ セッション更新完了（距離込み）:', sessionId);
-        
-        // Notify other contexts about the session update
-        this.notifyDataChange('session_updated', { 
-            sessionId, 
-            duration: Math.floor(duration / 1000),
-            distance 
-        });
-        
         return sessionId;
     }
 

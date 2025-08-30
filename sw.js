@@ -110,48 +110,6 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Data synchronization storage
-let syncedData = {
-  lastSync: 0,
-  pendingUpdates: []
-};
-
-// Handle messages from clients for data synchronization
-self.addEventListener('message', (event) => {
-  const { type, data } = event.data;
-  
-  console.log('🔄 ServiceWorker received message:', type, data);
-  
-  if (type === 'DATA_SYNC_REQUEST') {
-    // Client is requesting sync data
-    event.ports[0].postMessage({
-      type: 'DATA_SYNC_RESPONSE',
-      data: syncedData
-    });
-  } else if (type === 'DATA_UPDATE') {
-    // Client is notifying of data changes
-    syncedData.pendingUpdates.push({
-      ...data,
-      timestamp: Date.now(),
-      source: event.source.id
-    });
-    syncedData.lastSync = Date.now();
-    
-    console.log('📡 Broadcasting data update to all clients:', data);
-    
-    // Broadcast to all other clients
-    self.clients.matchAll().then((clients) => {
-      clients.forEach((client) => {
-        if (client.id !== event.source.id) {
-          client.postMessage({
-            type: 'DATA_SYNC_UPDATE',
-            data: data
-          });
-        }
-      });
-    });
-  }
-});
 
 // Handle background sync for data when connection is restored
 self.addEventListener('sync', (event) => {

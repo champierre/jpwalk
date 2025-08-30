@@ -95,53 +95,6 @@ export class WalkingController {
                 this.showMain();
             }
         });
-
-        // Listen for data sync events from other contexts
-        document.addEventListener('dataSync', (event) => {
-            console.log('🔄 Data sync event received:', event.detail);
-            this.handleDataSyncEvent(event.detail);
-        });
-    }
-
-    // Handle data synchronization events from other contexts
-    handleDataSyncEvent(syncData) {
-        console.log('🔄 Handling data sync:', syncData);
-        
-        // Refresh current view to show updated data
-        if (syncData.type === 'session_created' || syncData.type === 'session_updated') {
-            // If we're on the main page, refresh the recent sessions
-            if (this.router.currentView === 'main') {
-                this.showMain();
-            }
-            // If we're on the sessions page, refresh the session list
-            else if (this.router.currentView === 'sessions') {
-                this.showSessions();
-            }
-            // If we're viewing a specific session, refresh if it's the updated one
-            else if (this.router.currentView === 'session' && syncData.sessionId) {
-                const currentHash = window.location.hash;
-                if (currentHash === `#session/${syncData.sessionId}`) {
-                    this.showSession(syncData.sessionId);
-                }
-            }
-            
-            // Show a subtle notification
-            this.showSyncNotification('データが他のデバイスから同期されました');
-        }
-    }
-
-    // Show a subtle sync notification
-    showSyncNotification(message) {
-        // Create a temporary notification element
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 bg-blue-500 text-white px-4 py-2 rounded-md shadow-lg z-50 text-sm';
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        // Remove after 3 seconds
-        setTimeout(() => {
-            notification.remove();
-        }, 3000);
     }
 
     setupEventListeners() {
