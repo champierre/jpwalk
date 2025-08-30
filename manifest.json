@@ -2,12 +2,12 @@
   "name": "Japanese Walking - インターバル速歩",
   "short_name": "Japanese Walking",
   "description": "インターバル速歩で健康習慣を身につけよう",
-  "start_url": "./",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#f9fafb",
   "theme_color": "#4CAF50",
   "orientation": "portrait-primary",
-  "scope": "./",
+  "scope": "/",
   "icons": [
     {
       "src": "icon.png",
