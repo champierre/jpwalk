@@ -85,6 +85,10 @@ export class WalkingController {
         console.log('💾 Existing sessions in localStorage:', existingSessions ? JSON.parse(existingSessions).length : 0);
         console.log('💾 Existing locations in localStorage:', existingLocations ? JSON.parse(existingLocations).length : 0);
         
+        // Debug worker availability
+        console.log('💾 Worker available:', 'Worker' in window);
+        console.log('💾 Service Worker controller:', navigator.serviceWorker?.controller ? 'Active' : 'None');
+        
         await this.model.initSQLite();
         this.router.init();
         this.setupEventListeners();

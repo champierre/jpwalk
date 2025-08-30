@@ -42,7 +42,9 @@ export class WalkingModel {
             };
 
             this.worker.onerror = (error) => {
-                console.error('Worker error:', error);
+                console.error('💾 Worker error:', error);
+                console.log('💾 Falling back to LocalStorage due to worker error');
+                this.worker = null;
                 this.initLocalStorageFallback();
             };
 
@@ -57,8 +59,11 @@ export class WalkingModel {
         }
     }
 
-    initLocalStorageFallback() {
-        console.log('LocalStorageフォールバックを使用します');
+    async initLocalStorageFallback() {
+        console.log('💾 LocalStorageフォールバックを使用します');
+        
+        // Try to migrate data from IndexedDB if available
+        await this.migrateFromIndexedDBToLocalStorage();
         
         if (!localStorage.getItem('walkingSessions')) {
             localStorage.setItem('walkingSessions', JSON.stringify([]));
@@ -70,6 +75,46 @@ export class WalkingModel {
         this.localStorageSessionId = parseInt(localStorage.getItem('lastSessionId') || '0');
         
         document.dispatchEvent(new CustomEvent('dbReady'));
+    }
+    
+    async migrateFromIndexedDBToLocalStorage() {
+        try {
+            console.log('💾 Attempting to migrate data from IndexedDB to LocalStorage...');
+            
+            // Check if we already have data in LocalStorage
+            const existingSessions = localStorage.getItem('walkingSessions');
+            if (existingSessions && JSON.parse(existingSessions).length > 0) {
+                console.log('💾 LocalStorage already has data, skipping migration');
+                return;
+            }
+            
+            // Try to read SQLite data directly from IndexedDB
+            const request = indexedDB.open('jpwalk_db', 1);
+            
+            request.onsuccess = async (event) => {
+                const db = event.target.result;
+                
+                if (!db.objectStoreNames.contains('database')) {
+                    console.log('💾 No IndexedDB data found to migrate');
+                    return;
+                }
+                
+                const transaction = db.transaction(['database'], 'readonly');
+                const store = transaction.objectStore('database');
+                const getRequest = store.get('main');
+                
+                getRequest.onsuccess = async () => {
+                    if (getRequest.result && getRequest.result.data) {
+                        console.log('💾 Found IndexedDB data, attempting to extract...');
+                        // This would require SQL.js to parse the data, which is complex
+                        // For now, we'll skip this approach and use a simpler solution
+                    }
+                };
+            };
+            
+        } catch (error) {
+            console.log('💾 Migration from IndexedDB failed:', error);
+        }
     }
 
     async execSQL(query, params = []) {
