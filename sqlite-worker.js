@@ -9,6 +9,7 @@ const DB_VERSION = 1;
 // IndexedDB utilities
 const openIndexedDB = () => {
     return new Promise((resolve, reject) => {
+        console.log('💾 Worker: Opening IndexedDB:', DB_NAME, 'version:', DB_VERSION);
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         
         request.onerror = () => reject(request.error);
@@ -36,6 +37,7 @@ const saveToIndexedDB = async (data) => {
 
 const loadFromIndexedDB = async () => {
     try {
+        console.log('💾 Worker: Loading database from IndexedDB');
         const idb = await openIndexedDB();
         const transaction = idb.transaction(['database'], 'readonly');
         const store = transaction.objectStore('database');
@@ -43,9 +45,14 @@ const loadFromIndexedDB = async () => {
         return new Promise((resolve) => {
             const request = store.get('main');
             request.onsuccess = () => {
-                resolve(request.result?.data || null);
+                const result = request.result?.data || null;
+                console.log('💾 Worker: Loaded database from IndexedDB, size:', result ? result.length : 0, 'bytes');
+                resolve(result);
             };
-            request.onerror = () => resolve(null);
+            request.onerror = () => {
+                console.log('💾 Worker: Failed to load from IndexedDB');
+                resolve(null);
+            };
         });
     } catch {
         return null;
