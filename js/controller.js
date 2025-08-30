@@ -707,7 +707,10 @@ export class WalkingController {
         console.log('📱 display-mode:', window.matchMedia('(display-mode: standalone)').matches);
         
         if (isStandalone) {
-            console.log('App is already installed');
+            console.log('App is running in standalone mode (PWA)');
+            // Mark that the app has been used in standalone mode
+            localStorage.setItem('hasUsedStandalone', 'true');
+            localStorage.setItem('pwaInstalled', 'true');
             return;
         }
         
@@ -730,17 +733,121 @@ export class WalkingController {
         console.log('📱 User Agent:', navigator.userAgent);
         
         if (isIOS && !isStandalone) {
-            console.log('📱 iOS Safari detected, checking if should show prompt...');
-            console.log('📱 Has shown prompt before:', this.hasShownInstallPrompt());
+            console.log('📱 iOS Safari detected, checking install status...');
             
-            // Show install prompt for iOS immediately
-            if (!this.hasShownInstallPrompt()) {
-                console.log('📱 Showing install prompt for iOS');
-                this.showInstallPrompt();
+            // Check if PWA is already installed by looking for evidence
+            if (this.isPWAInstalled()) {
+                console.log('📱 PWA appears to be installed, checking if should show launch prompt');
+                if (!this.hasShownLaunchPrompt()) {
+                    console.log('📱 Showing launch prompt');
+                    this.showLaunchPrompt();
+                } else {
+                    console.log('📱 Launch prompt already shown recently, skipping');
+                }
             } else {
-                console.log('📱 Install prompt already shown recently, skipping');
+                console.log('📱 PWA not installed, checking if should show install prompt...');
+                console.log('📱 Has shown prompt before:', this.hasShownInstallPrompt());
+                
+                // Show install prompt for iOS immediately
+                if (!this.hasShownInstallPrompt()) {
+                    console.log('📱 Showing install prompt for iOS');
+                    this.showInstallPrompt();
+                } else {
+                    console.log('📱 Install prompt already shown recently, skipping');
+                }
             }
         }
+    }
+
+    // Check if PWA is likely installed by looking for stored data or previous usage
+    isPWAInstalled() {
+        // Look for evidence that the app has been used as a PWA before
+        // This could be previous sessions, stored data, or app usage patterns
+        
+        // Check if there's a marker that indicates PWA was installed before
+        const pwaInstalled = localStorage.getItem('pwaInstalled');
+        if (pwaInstalled === 'true') {
+            return true;
+        }
+        
+        // Check if there's significant data (indicating app has been used)
+        // This suggests the user might have the PWA installed and has used it
+        const walkingSessions = localStorage.getItem('walkingSessions');
+        const hasSignificantData = walkingSessions && JSON.parse(walkingSessions).length > 1;
+        
+        // Also check for any previous standalone mode usage
+        const hasUsedStandalone = localStorage.getItem('hasUsedStandalone') === 'true';
+        
+        return hasSignificantData || hasUsedStandalone;
+    }
+
+    // Show a prompt encouraging user to launch from home screen
+    showLaunchPrompt() {
+        console.log('📱 showLaunchPrompt called');
+        
+        // Mark that we've detected the app might be installed
+        localStorage.setItem('pwaDetected', 'true');
+        
+        const installPrompt = document.getElementById('installPrompt');
+        if (installPrompt) {
+            // Update the prompt content for launch instead of install
+            const promptContent = installPrompt.querySelector('.bg-white');
+            if (promptContent) {
+                promptContent.innerHTML = `
+                    <div class="flex items-start">
+                        <div class="flex-shrink-0">
+                            <img src="icon.png" alt="Japanese Walking" class="w-12 h-12 rounded-lg">
+                        </div>
+                        <div class="ml-4 flex-1">
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">ホーム画面のアプリをご利用ください</h3>
+                            <p class="text-sm text-gray-600 mb-4">
+                                より良い体験のため、ホーム画面に追加済みの「Japanese Walking」アプリからご利用ください。
+                            </p>
+                            <div class="flex items-center text-xs text-gray-500">
+                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 2L3 7v11a2 2 0 002 2h10a2 2 0 002-2V7l-7-5z"/>
+                                </svg>
+                                ホーム画面で「Japanese Walking」を探してタップしてください
+                            </div>
+                        </div>
+                        <button id="closeLaunchPrompt" class="flex-shrink-0 ml-4 text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                
+                // Add close button functionality
+                const closeBtn = document.getElementById('closeLaunchPrompt');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        installPrompt.classList.add('hidden');
+                        localStorage.setItem('launchPromptDismissed', Date.now().toString());
+                    });
+                }
+            }
+            
+            installPrompt.classList.remove('hidden');
+            console.log('📱 Launch prompt should now be visible');
+        }
+    }
+
+    // Check if launch prompt has been shown recently
+    hasShownLaunchPrompt() {
+        const lastDismissed = localStorage.getItem('launchPromptDismissed');
+        if (!lastDismissed) {
+            return false;
+        }
+        
+        const now = Date.now();
+        const timeSinceLastDismissed = now - parseInt(lastDismissed);
+        
+        // Show launch prompt again after 24 hours (86400000 ms)
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        console.log('📱 Time since last launch prompt dismissed:', Math.floor(timeSinceLastDismissed / 1000), 'seconds');
+        
+        return timeSinceLastDismissed < twentyFourHours;
     }
     
     hasShownInstallPrompt() {
