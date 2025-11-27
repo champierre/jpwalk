@@ -1,7 +1,7 @@
 {
   "name": "jpwalk",
   "version": "1.0.0",
-  "description": "Japanese Walking (インターバル速歩) web application",
+  "description": "Walk Log (インターバル速歩) web application",
   "scripts": {
     "test": "jest",
     "test:watch": "jest --watch",

@@ -72,7 +72,7 @@ describe('Data Export/Import Functionality', () => {
                     const exportData = {
                         version: '1.0',
                         exportedAt: new Date().toISOString(),
-                        appName: 'Japanese Walking (インターバル速歩)',
+                        appName: 'Walk Log (インターバル速歩)',
                         data: {
                             sessions: sessions,
                             locations: locations
@@ -101,7 +101,7 @@ describe('Data Export/Import Functionality', () => {
 
         // Verify export data structure
         expect(exportData.version).toBe('1.0');
-        expect(exportData.appName).toBe('Japanese Walking (インターバル速歩)');
+        expect(exportData.appName).toBe('Walk Log (インターバル速歩)');
         expect(exportData.exportedAt).toBeTruthy();
 
         // Verify data content

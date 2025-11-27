@@ -1,6 +1,6 @@
 {
-  "name": "Japanese Walking - インターバル速歩",
-  "short_name": "Japanese Walking",
+  "name": "Walk Log - インターバル速歩",
+  "short_name": "Walk Log",
   "description": "インターバル速歩で健康習慣を身につけよう",
   "start_url": "/",
   "display": "standalone",
