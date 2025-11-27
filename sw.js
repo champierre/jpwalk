@@ -155,7 +155,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification('Japanese Walking', options)
+    self.registration.showNotification('Walk Log', options)
   );
 });
 

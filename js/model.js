@@ -407,7 +407,7 @@ export class WalkingModel {
             const exportData = {
                 version: '1.0',
                 exportedAt: new Date().toISOString(),
-                appName: 'Japanese Walking (インターバル速歩)',
+                appName: 'Walk Log (インターバル速歩)',
                 data: {
                     sessions: sessions,
                     locations: locations
