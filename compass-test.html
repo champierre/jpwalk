@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>コンパステスト - 東京タワー</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .compass-container {
+            width: 280px;
+            height: 280px;
+            position: relative;
+        }
+
+        .compass-ring {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 4px solid #374151;
+            position: relative;
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3), inset 0 2px 10px rgba(255, 255, 255, 0.1);
+        }
+
+        .compass-directions {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.1s ease-out;
+        }
+
+        .direction-mark {
+            position: absolute;
+            font-weight: bold;
+            font-size: 18px;
+            color: #9ca3af;
+        }
+
+        .direction-mark.north {
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ef4444;
+            font-size: 22px;
+        }
+
+        .direction-mark.south {
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .direction-mark.east {
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .direction-mark.west {
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .target-arrow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 100px;
+            margin-left: -2px;
+            margin-top: -90px;
+            transform-origin: center 90px;
+            z-index: 10;
+        }
+
+        .target-arrow::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 24px solid #f97316;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .target-arrow::after {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 70px;
+            background: linear-gradient(to bottom, #f97316, #ea580c);
+            border-radius: 2px;
+        }
+
+        .compass-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 8px rgba(249, 115, 22, 0.5);
+            z-index: 20;
+        }
+
+        .tick-marks {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .tick {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            width: 2px;
+            height: 10px;
+            background: #6b7280;
+            transform-origin: center 132px;
+        }
+
+        .tick.major {
+            height: 16px;
+            width: 3px;
+            background: #9ca3af;
+        }
+
+        .tokyo-tower-icon {
+            font-size: 24px;
+        }
+
+        .permission-button {
+            background: linear-gradient(135deg, #f97316, #ea580c);
+            transition: all 0.3s ease;
+        }
+
+        .permission-button:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(249, 115, 22, 0.4);
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+            border: 1px solid #374151;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold mb-2">🗼 東京タワーコンパス</h1>
+            <p class="text-gray-400 text-sm">位置情報とコンパス機能のテスト</p>
+        </div>
+
+        <!-- Permission Request -->
+        <div id="permissionSection" class="mb-8">
+            <div class="info-card rounded-xl p-6 text-center">
+                <p class="text-gray-300 mb-4">位置情報とデバイスの向きを使用して、東京タワーの方向を表示します。</p>
+                <button id="startButton" class="permission-button text-white font-bold py-3 px-8 rounded-full">
+                    開始する
+                </button>
+            </div>
+        </div>
+
+        <!-- Compass -->
+        <div id="compassSection" class="hidden">
+            <!-- Compass Display -->
+            <div class="flex justify-center mb-6">
+                <div class="compass-container">
+                    <div class="compass-ring">
+                        <!-- Tick marks -->
+                        <div class="tick-marks" id="tickMarks"></div>
+
+                        <!-- Compass directions (rotate with device) -->
+                        <div class="compass-directions" id="compassDirections">
+                            <span class="direction-mark north">N</span>
+                            <span class="direction-mark east">E</span>
+                            <span class="direction-mark south">S</span>
+                            <span class="direction-mark west">W</span>
+                        </div>
+
+                        <!-- Arrow pointing to Tokyo Tower (fixed) -->
+                        <div class="target-arrow" id="targetArrow"></div>
+
+                        <!-- Center dot -->
+                        <div class="compass-center"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target Info -->
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center gap-2 bg-orange-500/20 text-orange-400 px-4 py-2 rounded-full">
+                    <span class="tokyo-tower-icon">🗼</span>
+                    <span class="font-bold">東京タワー</span>
+                </div>
+            </div>
+
+            <!-- Status Cards -->
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="info-card rounded-xl p-4 text-center">
+                    <p class="text-gray-400 text-xs mb-1">距離</p>
+                    <p class="text-2xl font-bold text-orange-400" id="distanceDisplay">---</p>
+                </div>
+                <div class="info-card rounded-xl p-4 text-center">
+                    <p class="text-gray-400 text-xs mb-1">方位</p>
+                    <p class="text-2xl font-bold text-orange-400" id="bearingDisplay">---</p>
+                </div>
+            </div>
+
+            <!-- Debug Info -->
+            <div class="info-card rounded-xl p-4 mb-6">
+                <h3 class="text-sm font-bold text-gray-300 mb-3">デバッグ情報</h3>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">現在位置</span>
+                        <span class="text-gray-200" id="currentPosition">取得中...</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">目標位置</span>
+                        <span class="text-gray-200">35.6586, 139.7454</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">デバイス方位</span>
+                        <span class="text-gray-200" id="deviceHeading">---</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">目標方位角</span>
+                        <span class="text-gray-200" id="targetBearing">---</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">相対角度</span>
+                        <span class="text-gray-200" id="relativeAngle">---</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">精度</span>
+                        <span class="text-gray-200" id="accuracy">---</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Message -->
+            <div id="statusMessage" class="text-center text-sm text-gray-400 mb-4"></div>
+
+            <!-- Back Link -->
+            <div class="text-center">
+                <a href="index.html" class="text-gray-400 hover:text-white text-sm">← メインアプリに戻る</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tokyo Tower coordinates
+        const TOKYO_TOWER = {
+            lat: 35.6585805,
+            lng: 139.7454329
+        };
+
+        // State
+        let currentPosition = null;
+        let deviceHeading = null;
+        let watchId = null;
+
+        // DOM elements
+        const startButton = document.getElementById('startButton');
+        const permissionSection = document.getElementById('permissionSection');
+        const compassSection = document.getElementById('compassSection');
+        const compassDirections = document.getElementById('compassDirections');
+        const targetArrow = document.getElementById('targetArrow');
+        const distanceDisplay = document.getElementById('distanceDisplay');
+        const bearingDisplay = document.getElementById('bearingDisplay');
+        const currentPositionEl = document.getElementById('currentPosition');
+        const deviceHeadingEl = document.getElementById('deviceHeading');
+        const targetBearingEl = document.getElementById('targetBearing');
+        const relativeAngleEl = document.getElementById('relativeAngle');
+        const accuracyEl = document.getElementById('accuracy');
+        const statusMessage = document.getElementById('statusMessage');
+
+        // Generate tick marks
+        function generateTickMarks() {
+            const tickMarks = document.getElementById('tickMarks');
+            for (let i = 0; i < 36; i++) {
+                const tick = document.createElement('div');
+                tick.className = `tick ${i % 3 === 0 ? 'major' : ''}`;
+                tick.style.transform = `translateX(-50%) rotate(${i * 10}deg)`;
+                tickMarks.appendChild(tick);
+            }
+        }
+
+        // Calculate distance between two points using Haversine formula
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = toRad(lat2 - lat1);
+            const dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        // Calculate bearing from point 1 to point 2
+        function calculateBearing(lat1, lng1, lat2, lng2) {
+            const dLng = toRad(lng2 - lng1);
+            const lat1Rad = toRad(lat1);
+            const lat2Rad = toRad(lat2);
+
+            const x = Math.sin(dLng) * Math.cos(lat2Rad);
+            const y = Math.cos(lat1Rad) * Math.sin(lat2Rad) -
+                      Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLng);
+
+            let bearing = Math.atan2(x, y);
+            bearing = toDeg(bearing);
+            bearing = (bearing + 360) % 360;
+
+            return bearing;
+        }
+
+        function toRad(deg) {
+            return deg * (Math.PI / 180);
+        }
+
+        function toDeg(rad) {
+            return rad * (180 / Math.PI);
+        }
+
+        // Format distance for display
+        function formatDistance(km) {
+            if (km < 1) {
+                return `${Math.round(km * 1000)}m`;
+            } else if (km < 10) {
+                return `${km.toFixed(2)}km`;
+            } else {
+                return `${km.toFixed(1)}km`;
+            }
+        }
+
+        // Format bearing for display
+        function formatBearing(bearing) {
+            const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+            const index = Math.round(bearing / 45) % 8;
+            return `${Math.round(bearing)}° ${directions[index]}`;
+        }
+
+        // Update compass display
+        function updateCompass() {
+            if (!currentPosition) return;
+
+            // Calculate bearing to Tokyo Tower
+            const bearing = calculateBearing(
+                currentPosition.lat, currentPosition.lng,
+                TOKYO_TOWER.lat, TOKYO_TOWER.lng
+            );
+
+            // Calculate distance
+            const distance = calculateDistance(
+                currentPosition.lat, currentPosition.lng,
+                TOKYO_TOWER.lat, TOKYO_TOWER.lng
+            );
+
+            // Update display
+            distanceDisplay.textContent = formatDistance(distance);
+            bearingDisplay.textContent = formatBearing(bearing);
+            targetBearingEl.textContent = `${bearing.toFixed(1)}°`;
+
+            if (deviceHeading !== null) {
+                // Rotate compass directions opposite to device heading
+                compassDirections.style.transform = `rotate(${-deviceHeading}deg)`;
+
+                // Calculate relative angle (bearing - heading)
+                // This shows which way to turn
+                let relativeAngle = bearing - deviceHeading;
+                relativeAngle = ((relativeAngle + 180) % 360) - 180; // Normalize to -180 to 180
+
+                // Arrow should point to the target relative to device heading
+                targetArrow.style.transform = `rotate(${bearing - deviceHeading}deg)`;
+
+                relativeAngleEl.textContent = `${relativeAngle.toFixed(1)}°`;
+                deviceHeadingEl.textContent = `${deviceHeading.toFixed(1)}°`;
+            } else {
+                // No heading data - arrow points to absolute bearing
+                targetArrow.style.transform = `rotate(${bearing}deg)`;
+                compassDirections.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        // Handle geolocation success
+        function onPositionSuccess(position) {
+            currentPosition = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude
+            };
+
+            currentPositionEl.textContent = `${currentPosition.lat.toFixed(4)}, ${currentPosition.lng.toFixed(4)}`;
+            accuracyEl.textContent = `±${Math.round(position.coords.accuracy)}m`;
+
+            updateCompass();
+            setStatus('位置情報を取得しました');
+        }
+
+        // Handle geolocation error
+        function onPositionError(error) {
+            let message = '';
+            switch (error.code) {
+                case error.PERMISSION_DENIED:
+                    message = '位置情報の許可が必要です';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    message = '位置情報を取得できません';
+                    break;
+                case error.TIMEOUT:
+                    message = '位置情報の取得がタイムアウトしました';
+                    break;
+                default:
+                    message = '位置情報エラーが発生しました';
+            }
+            setStatus(message, true);
+            currentPositionEl.textContent = 'エラー';
+        }
+
+        // Handle device orientation
+        function onDeviceOrientation(event) {
+            // webkitCompassHeading is available on iOS
+            if (event.webkitCompassHeading !== undefined) {
+                deviceHeading = event.webkitCompassHeading;
+            } else if (event.alpha !== null) {
+                // On Android, alpha is the compass heading
+                // alpha is 0 when pointing north, increases counterclockwise
+                // We need to convert to clockwise heading
+                deviceHeading = (360 - event.alpha) % 360;
+            }
+
+            updateCompass();
+        }
+
+        // Set status message
+        function setStatus(message, isError = false) {
+            statusMessage.textContent = message;
+            statusMessage.className = `text-center text-sm mb-4 ${isError ? 'text-red-400' : 'text-gray-400'}`;
+        }
+
+        // Request permissions and start tracking
+        async function start() {
+            permissionSection.classList.add('hidden');
+            compassSection.classList.remove('hidden');
+
+            setStatus('センサーを初期化中...');
+
+            // Start geolocation tracking
+            if ('geolocation' in navigator) {
+                watchId = navigator.geolocation.watchPosition(
+                    onPositionSuccess,
+                    onPositionError,
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 0,
+                        timeout: 10000
+                    }
+                );
+            } else {
+                setStatus('このデバイスは位置情報に対応していません', true);
+            }
+
+            // Request device orientation permission (required on iOS 13+)
+            if (typeof DeviceOrientationEvent !== 'undefined' &&
+                typeof DeviceOrientationEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceOrientationEvent.requestPermission();
+                    if (permission === 'granted') {
+                        window.addEventListener('deviceorientation', onDeviceOrientation, true);
+                        setStatus('コンパスセンサーが有効になりました');
+                    } else {
+                        setStatus('コンパスの許可が必要です', true);
+                        deviceHeadingEl.textContent = '許可なし';
+                    }
+                } catch (error) {
+                    console.error('Orientation permission error:', error);
+                    setStatus('コンパスセンサーにアクセスできません', true);
+                }
+            } else if ('DeviceOrientationEvent' in window) {
+                // Non-iOS devices don't need permission
+                window.addEventListener('deviceorientation', onDeviceOrientation, true);
+            } else {
+                deviceHeadingEl.textContent = '非対応';
+                setStatus('このデバイスはコンパスに対応していません');
+            }
+        }
+
+        // Initialize
+        generateTickMarks();
+        startButton.addEventListener('click', start);
+    </script>
+</body>
+</html>
