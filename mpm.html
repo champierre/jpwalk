@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>丸の内パークイン 加盟店マップ</title>
+    <link rel="icon" type="image/png" href="icon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map {
+            height: calc(100vh - 120px);
+            width: 100%;
+        }
+
+        .legend {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0;
+            font-size: 12px;
+        }
+
+        .legend-icon {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        .custom-popup .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+        }
+
+        .custom-popup .leaflet-popup-content {
+            margin: 12px;
+        }
+
+        .facility-popup {
+            min-width: 200px;
+        }
+
+        .facility-popup h3 {
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 4px;
+        }
+
+        .facility-popup p {
+            font-size: 12px;
+            color: #666;
+            margin: 2px 0;
+        }
+
+        .facility-popup .discount-info {
+            background: #fef3c7;
+            padding: 6px 8px;
+            border-radius: 6px;
+            margin-top: 8px;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Header -->
+    <div class="bg-blue-600 text-white px-4 py-3">
+        <h1 class="text-lg font-bold">🅿️ 丸の内パークイン 加盟店マップ</h1>
+        <p class="text-xs text-blue-200">駐車サービスが受けられる施設</p>
+    </div>
+
+    <!-- Filter Buttons -->
+    <div class="bg-white px-4 py-2 flex gap-2 overflow-x-auto border-b">
+        <button id="filterAll" class="px-3 py-1 text-xs rounded-full bg-blue-600 text-white whitespace-nowrap">すべて</button>
+        <button id="filterShops" class="px-3 py-1 text-xs rounded-full bg-gray-200 text-gray-700 whitespace-nowrap">🛍️ 商業施設</button>
+        <button id="filterParking" class="px-3 py-1 text-xs rounded-full bg-gray-200 text-gray-700 whitespace-nowrap">🅿️ 駐車場</button>
+    </div>
+
+    <!-- Map -->
+    <div id="map"></div>
+
+    <script>
+        // 加盟店商業施設
+        const shops = [
+            {
+                name: "丸ビル",
+                fullName: "丸の内ビルディング",
+                lat: 35.6815,
+                lng: 139.7636,
+                floors: "B1-6F",
+                note: "ショップ・レストラン多数",
+                type: "shop"
+            },
+            {
+                name: "新丸ビル",
+                fullName: "新丸の内ビルディング",
+                lat: 35.6825,
+                lng: 139.7645,
+                floors: "B1-7F",
+                note: "ショップ・レストラン多数",
+                type: "shop"
+            },
+            {
+                name: "丸の内オアゾ",
+                fullName: "Marunouchi OAZO",
+                lat: 35.6835,
+                lng: 139.7652,
+                floors: "B1-6F",
+                note: "丸善本店・レストラン",
+                type: "shop"
+            },
+            {
+                name: "東京ビルTOKIA",
+                fullName: "TOKIA",
+                lat: 35.6789,
+                lng: 139.7645,
+                floors: "B1-3F",
+                note: "レストラン・カフェ",
+                type: "shop"
+            },
+            {
+                name: "丸の内MY PLAZA",
+                fullName: "明治安田生命ビル",
+                lat: 35.6772,
+                lng: 139.7620,
+                floors: "B1-4F",
+                note: "ショップ・レストラン",
+                type: "shop"
+            },
+            {
+                name: "丸の内ブリックスクエア",
+                fullName: "Marunouchi Brick Square",
+                lat: 35.6800,
+                lng: 139.7631,
+                floors: "1-3F",
+                note: "ショップ・レストラン",
+                type: "shop"
+            },
+            {
+                name: "iiyo!!（イーヨ）",
+                fullName: "国際ビル",
+                lat: 35.6765,
+                lng: 139.7605,
+                floors: "B1-3F",
+                note: "ショップ・レストラン",
+                type: "shop"
+            },
+            {
+                name: "KITTE丸の内",
+                fullName: "JPタワー",
+                lat: 35.6792,
+                lng: 139.7660,
+                floors: "B1-6F",
+                note: "ショップ・レストラン・郵便局",
+                type: "shop"
+            },
+            {
+                name: "丸の内テラス",
+                fullName: "Marunouchi Terrace",
+                lat: 35.6842,
+                lng: 139.7638,
+                floors: "1-3F",
+                note: "レストラン・カフェ",
+                type: "shop"
+            },
+            {
+                name: "TOKYO TORCH",
+                fullName: "常盤橋タワー",
+                lat: 35.6858,
+                lng: 139.7678,
+                floors: "1-4F",
+                note: "レストラン・ショップ",
+                type: "shop"
+            }
+        ];
+
+        // 駐車場
+        const parkings = [
+            {
+                name: "丸の内パークビル駐車場",
+                lat: 35.6800,
+                lng: 139.7638,
+                capacity: "約200台",
+                type: "parking"
+            },
+            {
+                name: "三菱ビルガレージ",
+                lat: 35.6810,
+                lng: 139.7628,
+                capacity: "約150台",
+                type: "parking"
+            },
+            {
+                name: "オアゾ駐車場",
+                lat: 35.6838,
+                lng: 139.7658,
+                capacity: "約300台",
+                type: "parking"
+            },
+            {
+                name: "丸の内中央パーキング",
+                lat: 35.6805,
+                lng: 139.7648,
+                capacity: "約100台",
+                type: "parking"
+            },
+            {
+                name: "JPタワー駐車場",
+                lat: 35.6795,
+                lng: 139.7665,
+                capacity: "約400台",
+                type: "parking"
+            },
+            {
+                name: "TOKYO TORCH常盤橋タワー駐車場",
+                lat: 35.6862,
+                lng: 139.7685,
+                capacity: "約300台",
+                type: "parking"
+            },
+            {
+                name: "新東京ビル駐車場",
+                lat: 35.6778,
+                lng: 139.7635,
+                capacity: "約200台",
+                type: "parking"
+            },
+            {
+                name: "丸の内二重橋ビル駐車場",
+                lat: 35.6768,
+                lng: 139.7640,
+                capacity: "約250台",
+                type: "parking"
+            },
+            {
+                name: "丸の内永楽ビル駐車場",
+                lat: 35.6832,
+                lng: 139.7618,
+                capacity: "約150台",
+                type: "parking"
+            },
+            {
+                name: "新国際ビルガレージ",
+                lat: 35.6758,
+                lng: 139.7598,
+                capacity: "約180台",
+                type: "parking"
+            },
+            {
+                name: "有楽町電気ビルガレージ",
+                lat: 35.6745,
+                lng: 139.7610,
+                capacity: "約200台",
+                type: "parking"
+            },
+            {
+                name: "東京ビル駐車場",
+                lat: 35.6785,
+                lng: 139.7652,
+                capacity: "約300台",
+                type: "parking"
+            },
+            {
+                name: "大手町パークビル駐車場",
+                lat: 35.6870,
+                lng: 139.7648,
+                capacity: "約200台",
+                type: "parking"
+            },
+            {
+                name: "新大手町ビルガレージ",
+                lat: 35.6878,
+                lng: 139.7632,
+                capacity: "約180台",
+                type: "parking"
+            },
+            {
+                name: "丸の内仲通りビルガレージ",
+                lat: 35.6795,
+                lng: 139.7622,
+                capacity: "約120台",
+                type: "parking"
+            }
+        ];
+
+        // マップ初期化
+        const map = L.map('map').setView([35.6810, 139.7640], 16);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        // マーカーグループ
+        const shopMarkers = L.layerGroup();
+        const parkingMarkers = L.layerGroup();
+
+        // 商業施設マーカー（オレンジ）
+        const shopIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: #f97316; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">🛍️</div>',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+            popupAnchor: [0, -16]
+        });
+
+        // 駐車場マーカー（青）
+        const parkingIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: #2563eb; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">P</div>',
+            iconSize: [28, 28],
+            iconAnchor: [14, 14],
+            popupAnchor: [0, -14]
+        });
+
+        // 商業施設を追加
+        shops.forEach(shop => {
+            const popup = `
+                <div class="facility-popup">
+                    <h3>🛍️ ${shop.name}</h3>
+                    <p>${shop.fullName}</p>
+                    <p>フロア: ${shop.floors}</p>
+                    <p>${shop.note}</p>
+                    <div class="discount-info">
+                        <strong>駐車サービス:</strong><br>
+                        3,000円以上 → 1時間無料<br>
+                        6,000円以上 → 2時間無料<br>
+                        50,000円以上 → 24時間無料
+                    </div>
+                </div>
+            `;
+            const marker = L.marker([shop.lat, shop.lng], { icon: shopIcon })
+                .bindPopup(popup, { className: 'custom-popup' });
+            shopMarkers.addLayer(marker);
+        });
+
+        // 駐車場を追加
+        parkings.forEach(parking => {
+            const popup = `
+                <div class="facility-popup">
+                    <h3>🅿️ ${parking.name}</h3>
+                    <p>収容台数: ${parking.capacity}</p>
+                    <div class="discount-info">
+                        <strong>料金:</strong> 300円/30分<br>
+                        <strong>最大料金:</strong> 設定なし（平日）
+                    </div>
+                </div>
+            `;
+            const marker = L.marker([parking.lat, parking.lng], { icon: parkingIcon })
+                .bindPopup(popup, { className: 'custom-popup' });
+            parkingMarkers.addLayer(marker);
+        });
+
+        // 全マーカーを表示
+        shopMarkers.addTo(map);
+        parkingMarkers.addTo(map);
+
+        // 凡例を追加
+        const legend = L.control({ position: 'bottomright' });
+        legend.onAdd = function(map) {
+            const div = L.DomUtil.create('div', 'legend');
+            div.innerHTML = `
+                <div class="legend-item">
+                    <span class="legend-icon" style="background: #f97316;">🛍️</span>
+                    <span>商業施設（加盟店）</span>
+                </div>
+                <div class="legend-item">
+                    <span class="legend-icon" style="background: #2563eb; color: white;">P</span>
+                    <span>駐車場</span>
+                </div>
+            `;
+            return div;
+        };
+        legend.addTo(map);
+
+        // フィルターボタン
+        const filterAll = document.getElementById('filterAll');
+        const filterShops = document.getElementById('filterShops');
+        const filterParking = document.getElementById('filterParking');
+
+        function setActiveFilter(activeBtn) {
+            [filterAll, filterShops, filterParking].forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-gray-200', 'text-gray-700');
+            });
+            activeBtn.classList.remove('bg-gray-200', 'text-gray-700');
+            activeBtn.classList.add('bg-blue-600', 'text-white');
+        }
+
+        filterAll.addEventListener('click', () => {
+            setActiveFilter(filterAll);
+            map.addLayer(shopMarkers);
+            map.addLayer(parkingMarkers);
+        });
+
+        filterShops.addEventListener('click', () => {
+            setActiveFilter(filterShops);
+            map.addLayer(shopMarkers);
+            map.removeLayer(parkingMarkers);
+        });
+
+        filterParking.addEventListener('click', () => {
+            setActiveFilter(filterParking);
+            map.removeLayer(shopMarkers);
+            map.addLayer(parkingMarkers);
+        });
+
+        // 現在地を表示
+        if ('geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userIcon = L.divIcon({
+                        className: 'user-marker',
+                        html: '<div style="background: #22c55e; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                    });
+                    L.marker([position.coords.latitude, position.coords.longitude], { icon: userIcon })
+                        .bindPopup('現在地')
+                        .addTo(map);
+                },
+                (error) => {
+                    console.log('位置情報を取得できませんでした');
+                },
+                { enableHighAccuracy: true }
+            );
+        }
+    </script>
+</body>
+</html>
